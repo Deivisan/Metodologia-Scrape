@@ -1,116 +1,92 @@
 /**
- * 🕷️ Scrape Universal v3.1 - Framework de Captação Inteligente
+ * 🕷️ Scrape Universal v5.1 (Speaker Heuristic) - Framework de Captação Inteligente
  * Autor: Deivison Santana (@deivisan)
  * 
- * Este script é um template robusto para extração de dados de SPAs (Single Page Applications).
- * Configurado por padrão para conversas do Grok, mas facilmente adaptável.
+ * Atualização: Melhoria na detecção de falantes usando heurística de conteúdo e estrutura do Grok.
  */
 
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
 
-// --- ⚙️ CONFIGURAÇÃO UNIVERSAL ---
+puppeteer.use(StealthPlugin());
+
 const CONFIG = {
-  targetUrl: process.argv[2], // URL passada via CLI
-  outputDir: path.join(__dirname, 'captures'), // Pasta de saída padrão
-  scroll: {
-    enabled: true,
-    delay: 2000,    // Tempo de espera entre scrolls (ms)
-    maxScrolls: 50, // Limite de segurança para evitar loops infinitos
-  },
+  targetUrl: process.argv[2],
+  outputDir: path.join(__dirname, 'captures'),
+  scroll: { enabled: true, delay: 2000, maxScrolls: 50 },
   selectors: {
-    // Lista de seletores para tentar encontrar mensagens (ordem de prioridade)
-    messageContainers: [
-      '[role="article"]',
-      '[data-testid*="message"]',
-      '.message',
-      'div[class*="message"]'
-    ],
+    messageContainers: ['[role="article"]', '[data-testid*="message"]', '.message', 'div[class*="message"]'],
     author: '[data-author], .author, strong',
     timestamp: 'time'
   },
-  userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  executablePath: '/data/data/com.termux/files/usr/bin/chromium-browser',
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 };
 
-// --- 🔧 FUNÇÕES UTILITÁRIAS ---
-
-/** Gera metadados básicos a partir da URL */
 function extractMetadata(url) {
   const timestamp = new Date().toISOString();
-  // Tenta extrair um ID único da URL ou gera um aleatório
-  const urlMatch = url ? url.match(/share\/([^_]+)_(.+)$/) : null;
+  const urlMatch = url ? url.match(/share\/([^_]+)_(\d+)$/) : null;
   const uuid = urlMatch ? urlMatch[2] : `capture_${Date.now()}`;
-  
-  return {
-    uuid,
-    sourceUrl: url || 'unknown',
-    capturedAt: timestamp
-  };
+  return { uuid, sourceUrl: url || 'unknown', capturedAt: timestamp };
 }
 
-/** Realiza scroll infinito suave para carregar conteúdo dinâmico */
 async function autoScroll(page) {
   if (!CONFIG.scroll.enabled) return;
-
-  let previousHeight = 0;
-  let scrollCount = 0;
-  
-  console.log('📜 [Scroll] Iniciando varredura de conteúdo...');
+  let previousHeight = 0, scrollCount = 0;
+  console.log('📜 [Scroll] Iniciando...');
   
   while (scrollCount < CONFIG.scroll.maxScrolls) {
     const currentHeight = await page.evaluate(() => document.body.scrollHeight);
-    
-    if (currentHeight === previousHeight) {
-      console.log('✅ [Scroll] Final da página alcançado.');
-      break;
-    }
+    if (currentHeight === previousHeight) { console.log('✅ [Scroll] Fim.'); break; }
     
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(CONFIG.scroll.delay);
+    await new Promise(resolve => setTimeout(resolve, CONFIG.scroll.delay));
     
     previousHeight = currentHeight;
     scrollCount++;
-    
-    if (scrollCount % 5 === 0) {
-      console.log(`   ⏳ [Scroll] Passo ${scrollCount}/${CONFIG.scroll.maxScrolls} (${currentHeight}px)`);
-    }
+    if (scrollCount % 5 === 0) console.log(`   ⏳ Passo ${scrollCount}`);
   }
   
-  // Retorna ao topo para garantir que elementos visíveis sejam capturados corretamente se necessário
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(1000);
+  await new Promise(resolve => setTimeout(resolve, 1000));
 }
 
-/** 
- * Núcleo da Extração: Roda dentro do navegador 
- * Adapte esta função para extrair dados diferentes (ex: produtos, artigos)
- */
 async function extractContent(page) {
   console.log('🔍 [Extract] Analisando DOM...');
   
-  // Aguarda o corpo da página estar presente
   try {
-    await page.waitForSelector('body', { timeout: 15000 });
-  } catch (e) {
-    console.warn('⚠️ [Warn] Timeout aguardando body. Tentando extração mesmo assim...');
-  }
+    await page.waitForSelector('body', { timeout: 30000 });
+    const content = await page.content();
+    if (content.includes('Cloudflare')) {
+      console.log('🛡️ Detectado Cloudflare. Aguardando resolução...');
+      await new Promise(r => setTimeout(r, 10000));
+    }
+  } catch (e) {}
   
   return await page.evaluate((selectors) => {
     const results = [];
-    
-    // 1. Tenta encontrar containers de conteúdo com a lista de seletores
     let elements = [];
+    
     for (const sel of selectors.messageContainers) {
       const found = document.querySelectorAll(sel);
-      if (found.length > 0) {
-        elements = found;
-        break;
-      }
+      if (found.length > 0) { elements = found; break; }
     }
     
-    // 2. Fallback: Se não achar nada estruturado, pega o texto bruto
     if (elements.length === 0) {
+      // Tentativa de extração por blocos de texto visíveis se seletores falharem
+      const textBlocks = Array.from(document.querySelectorAll('p, h1, h2, h3, pre')).map(el => el.innerText);
+      if (textBlocks.length > 0) {
+         return textBlocks.map((text, idx) => ({
+            index: idx,
+            type: 'raw_block',
+            content: text,
+            author: 'unknown',
+            timestamp: null
+         }));
+      }
+
       return [{
         type: 'raw',
         content: document.body.innerText,
@@ -119,20 +95,49 @@ async function extractContent(page) {
       }];
     }
     
-    // 3. Processa cada elemento encontrado
     elements.forEach((el, idx) => {
       const text = el.innerText?.trim();
       if (!text) return;
       
-      // Tenta extrair autor e hora com seletores específicos
+      // Detecção Heurística de Falante Melhorada
+      let author = 'unknown';
+      
+      // 1. Tenta seletor direto
       const authorEl = el.querySelector(selectors.author);
+      if (authorEl) {
+        author = authorEl.innerText.trim();
+      } else {
+        // 2. Tenta inferir pelo conteúdo/ícone/classe
+        const html = el.innerHTML;
+        const classList = el.classList.toString();
+        
+        if (html.includes('Grok') || classList.includes('ai') || classList.includes('bot')) {
+            author = 'Grok';
+        } else if (classList.includes('user') || classList.includes('human')) {
+            author = 'User';
+        } else {
+            // 3. Heurística de alternância (Grok geralmente responde, User pergunta)
+            // Se o anterior foi User, este provavelmente é Grok (assumindo fluxo linear)
+            // Nota: Isso é falho em chats longos, então usamos 'unknown' ou tentamos padrão de texto
+            if (text.startsWith('Grok') || text.includes('I can help')) author = 'Grok';
+        }
+      }
+
+      // Correção específica para o Grok Share Interface (onde User geralmente é 'User' e AI é 'Grok')
+      if (author === 'unknown') {
+          // Tenta pegar do container pai se houver label
+          const parentText = el.parentElement?.innerText || '';
+          if (parentText.includes('Grok')) author = 'Grok';
+          else if (parentText.includes('User') || parentText.includes('You')) author = 'User';
+      }
+
       const timeEl = el.querySelector(selectors.timestamp);
       
       results.push({
         index: idx,
         type: 'structured',
         content: text,
-        author: authorEl ? authorEl.innerText.trim() : 'unknown',
+        author: author,
         timestamp: timeEl ? timeEl.getAttribute('datetime') : null
       });
     });
@@ -141,94 +146,96 @@ async function extractContent(page) {
   }, CONFIG.selectors);
 }
 
-/** Gera um arquivo Markdown limpo a partir dos dados */
 function generateMarkdown(metadata, data) {
   const date = new Date(metadata.capturedAt).toLocaleString('pt-BR');
-  
-  let md = `# 📝 Relatório de Captura\n\n`;
-  md += `> **ID:** 
-${'`'}${metadata.uuid}${'`'}
-`;
-  md += `> **Data:** ${date}\n`;
-  md += `> **Fonte:** [${metadata.sourceUrl}](${metadata.sourceUrl})\n`;
-  md += `> **Itens:** ${data.length}\n\n`;
-  md += `---\n\n`;
-  
-  data.forEach(item => {
-    if (item.type === 'raw') {
-      md += `### ⚠️ Conteúdo Bruto (Estrutura não detectada)\n\n`;
-      md += `
-${'`'}`text
-${'`'}
-${item.content}
+  let md = `# 📝 Relatório de Captura\n\n> **ID:** 
+${'`'}${metadata.uuid}${'`'} 
+> **Data:** ${date}
+> **Fonte:** [Link](${metadata.sourceUrl})
+
+---
 
 `;
+  
+  data.forEach(item => {
+    let icon = '❓';
+    let authorName = item.author;
+
+    if (item.author.toLowerCase().includes('grok')) {
+        icon = '🤖';
+        authorName = 'Grok';
+    } else if (item.author.toLowerCase().includes('user') || item.author.toLowerCase().includes('you')) {
+        icon = '👤';
+        authorName = 'User';
+    } else if (item.type === 'raw_block') {
+        icon = '📄';
+    }
+
+    if (item.type === 'raw') {
+      md += `### ⚠️ Conteúdo Bruto (Falha de Estrutura)\n\n\
+\
+text
+${item.content}
+\
+\
+\
+`;
     } else {
-      const icon = item.author.toLowerCase().includes('grok') ? '🤖' : '👤';
-      md += `### ${icon} **${item.author}**\n`;
-      md += `${item.content}\n\n`;
-      md += `*${item.timestamp || ''}*\n`;
-      md += `---\n`;
+      md += `### ${icon} **${authorName}**\n${item.content}\n\n---\n`;
     }
   });
   
   return md;
 }
 
-// --- 🚀 MAIN ---
 (async () => {
-  // Validação de entrada
   if (!CONFIG.targetUrl) {
     console.error('❌ Erro: URL não fornecida.');
-    console.log('👉 Uso: node scrape.js "https://exemplo.com"');
     process.exit(1);
   }
-
-  console.log('🚀 Iniciando Scraper Universal v3.1');
+  
+  console.log(`🚀 Iniciando Scraper v5.1 (Speaker Heuristic)`);
   console.log(`🎯 Alvo: ${CONFIG.targetUrl}`);
-
+  
   const metadata = extractMetadata(CONFIG.targetUrl);
-  
-  // Configuração do Browser
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-gpu'] // Necessário para ambientes server/container
-  });
-  
+  let browser;
+
   try {
-    const context = await browser.newContext({ userAgent: CONFIG.userAgent });
-    const page = await context.newPage();
+    if (!fs.existsSync(CONFIG.executablePath)) {
+      throw new Error(`Chromium não encontrado em: ${CONFIG.executablePath}. Instale com: pkg install chromium`);
+    }
+
+    browser = await puppeteer.launch({
+      executablePath: CONFIG.executablePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--single-process', '--disable-blink-features=AutomationControlled']
+    });
+
+    const page = await browser.newPage();
     
-    // Navegação
-    console.log('🌐 Navegando...');
-    await page.goto(CONFIG.targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'
+    });
+
+    await page.goto(CONFIG.targetUrl, { waitUntil: 'networkidle2', timeout: 60000 });
     
-    // Scroll Automático
     await autoScroll(page);
-    
-    // Extração
     const extractedData = await extractContent(page);
-    console.log(`✅ Extração concluída: ${extractedData.length} itens encontrados.`);
     
-    // Salvar Resultados
     if (!fs.existsSync(CONFIG.outputDir)) fs.mkdirSync(CONFIG.outputDir, { recursive: true });
     
-    // 1. JSON (Dados puros)
     const jsonPath = path.join(CONFIG.outputDir, `${metadata.uuid}.json`);
     fs.writeFileSync(jsonPath, JSON.stringify({ metadata, data: extractedData }, null, 2));
     
-    // 2. Markdown (Relatório legível)
     const mdPath = path.join(CONFIG.outputDir, `${metadata.uuid}.md`);
     fs.writeFileSync(mdPath, generateMarkdown(metadata, extractedData));
     
-    console.log(`\n💾 Resultados salvos em: ${CONFIG.outputDir}`);
+    console.log(`✅ Salvo em: ${CONFIG.outputDir}`);
     console.log(`   📄 ${path.basename(mdPath)}`);
-    console.log(`   { } ${path.basename(jsonPath)}`);
 
   } catch (error) {
-    console.error('\n💥 Erro fatal durante a execução:', error.message);
+    console.error('💥 Erro:', error.message);
   } finally {
-    await browser.close();
-    console.log('\n👋 Browser fechado.');
+    if (browser) await browser.close();
   }
 })();
