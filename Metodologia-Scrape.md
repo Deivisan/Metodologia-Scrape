@@ -1,113 +1,60 @@
-# 🕷️ Metodologia Scrape - Framework de Captação Inteligente
+# 📐 Metodologia de Extração e Estruturação de Dados
 
-> **Status:** v3.0 Universal (Refatorado pelo Gemini)
-> **Foco:** Estruturação de Dados Não-Estruturados, Contexto Conversacional e Resiliência
+Esta metodologia define os padrões para transformar conteúdo web não estruturado (HTML, SPAs) em dados semânticos úteis para desenvolvimento e automação via IA.
 
----
+## 1. Princípios Fundamentais
 
-## 🎯 Visão Geral
+### A. Contexto é Rei
+Capturar apenas o texto é insuficiente. Para que uma IA compreenda uma conversa ou documentação, ela precisa saber:
+*   **Origem:** Quem produziu a informação (Humano, Máquina, Sistema)?
+*   **Temporalidade:** Quando a informação foi gerada?
+*   **Tipo:** É um texto descritivo? Um bloco de código executável? Um comando de terminal?
 
-Este repositório contém uma metodologia robusta e scripts reutilizáveis para **Web Scraping Inteligente**, com foco especial na captação de conversas complexas de IA (como Grok, ChatGPT) e transformação em dados estruturados (Markdown/JSON).
+### B. Agnosticismo de Plataforma
+Os scripts de extração devem ser capazes de rodar em qualquer ambiente computacional moderno que suporte Node.js:
+*   Servidores Linux (Headless)
+*   Dispositivos Móveis (via Termux)
+*   Desktops de Desenvolvimento (Windows/Mac/Linux)
 
-A filosofia aqui não é apenas "baixar o HTML", mas sim **entender o contexto**.
-
-### 🧩 Pilares da Metodologia
-
-1.  **Estrutura Hierárquica:** Identificação clara de falantes, timestamps e metadados.
-2.  **Análise Contextual:** O script não apenas extrai texto, ele *analisa* se houve confirmação, correção ou erro na interação.
-3.  **Resiliência:** Lógica de scroll infinito, timeouts adaptativos e seletores múltiplos (fallback).
-4.  **Universalidade:** O código é modular, permitindo adaptar a lógica de extração (`extractConversation`) para qualquer site (ex: documentação, blogs, chats).
-
----
-
-## 🛠️ Ferramentas Utilizadas
-
-*   **Node.js (v20+):** Runtime JavaScript rápido e moderno.
-*   **Playwright:** Biblioteca de automação de navegador (mais confiável que Puppeteer para sites modernos/SPA).
-*   **Chromium Headless:** Navegador leve para execução em servidores/CLI.
-*   **FS/Path:** Manipulação nativa de arquivos para organização automática.
+### C. Resiliência
+A web é volátil. Seletores CSS mudam. Conexões caem. O scraper deve:
+1.  Tentar múltiplos métodos de localização de elementos (Seletores semânticos > IDs > Classes).
+2.  Falhar graciosamente (gerar um dump "Raw" se a estruturação falhar).
+3.  Simular comportamento humano (scroll, user-agent) para acessar o conteúdo.
 
 ---
 
-## 🚀 Como Usar
+## 2. Estrutura de Dados (Schema)
 
-### 1. Instalação
+O output padrão da metodologia é um objeto JSON contendo:
 
-Clone este repositório e instale as dependências:
-
-```bash
-git clone https://github.com/Deivisan/Metodologia-Scrape.git
-cd Metodologia-Scrape
-npm install playwright
-npx playwright install chromium
+```json
+{
+  "metadata": {
+    "source": "URL",
+    "timestamp": "ISO8601",
+    "environment": "Termux/Desktop"
+  },
+  "conversation": [
+    {
+      "index": 0,
+      "author": "User/AI/System",
+      "content": "Texto completo...",
+      "code": [
+        { "lang": "javascript", "content": "console.log('...')" }
+      ],
+      "intents": {
+        "files": [{ "action": "create", "path": "script.js" }],
+        "commands": ["npm install"]
+      }
+    }
+  ]
+}
 ```
 
-### 2. Execução Básica
+## 3. Fluxo de Trabalho com Agentes
 
-Para capturar uma conversa pública (ex: Grok Share) e gerar um relatório Markdown + JSON:
-
-```bash
-node scrape.js "https://grok.com/share/seu-link-aqui"
-```
-
-### 3. Output
-
-O script criará automaticamente uma pasta `../Transcricoes` contendo:
-*   `UUID.json`: Dados brutos e estruturados para análise de máquina.
-*   `UUID.md`: Relatório legível para humanos, formatado como um chat.
-
----
-
-## 🧠 A Lógica por Trás do Script
-
-O arquivo `scrape.js` opera em 4 fases distintas:
-
-### Fase 1: Navegação e Scroll (O "Crawler")
-Sites modernos (SPAs) carregam conteúdo dinamicamente. O script implementa um `autoScroll` inteligente que:
-*   Desce a página gradualmente.
-*   Verifica se a altura da página mudou.
-*   Para automaticamente quando atinge o fim ou um limite de segurança.
-
-### Fase 2: Extração (O "Parser")
-Em vez de confiar em um único seletor CSS (que pode quebrar amanhã), usamos uma estratégia de **Múltiplos Seletores**:
-```javascript
-const selectors = [
-  '[role="article"]',       // Padrão semântico (Melhor)
-  '[data-testid*="message"]', // Padrão de teste (Robusto)
-  '.message',               // Padrão de classe (Genérico)
-];
-```
-Se todos falharem, ele cai para um modo "Raw" (texto bruto) para garantir que *algo* seja salvo.
-
-### Fase 3: Análise de Contexto (A "IA Simbólica")
-Uma função `analyzeContext` varre as mensagens extraídas buscando padrões linguísticos:
-*   **Confirmações:** "Entendeu?", "Certo".
-*   **Correções:** "Não é isso", "Na verdade".
-*   **Sentimentos:** Palavras-chave que indicam frustração ou sucesso.
-
-### Fase 4: Geração de Relatório (O "Reporter")
-Transforma os dados em um Markdown bonito, com emojis para diferenciar usuários, citações e metadados no topo.
-
----
-
-## 🔮 Casos de Uso e Adaptação
-
-Este script foi desenhado inicialmente para **Transcrições do Grok**, mas a estrutura `extractConversation(page)` pode ser substituída para captar:
-
-*   **Documentação Técnica:** Extrair `h1`, `h2`, `code` de sites de docs.
-*   **Notícias:** Extrair `article`, `author`, `date`.
-*   **Comentários:** Extrair threads de discussões em fóruns.
-
-Basta alterar a lógica dentro de `page.evaluate()` na função de extração.
-
----
-
-## ⚖️ Considerações Éticas
-
-*   **Rate Limiting:** O script possui delays (`SCROLL_DELAY`) para não sobrecarregar o servidor alvo.
-*   **Dados Públicos:** Use apenas em URLs públicas ou conteúdo que você tem direito de acessar.
-*   **User-Agent:** O script se identifica como um navegador Linux padrão para evitar bloqueios simples, mas respeite o `robots.txt`.
-
----
-
-*Desenvolvido por Deivison Santana (@deivisan) - Potencializado por Gemini*
+1.  **Descoberta:** O desenvolvedor fornece uma URL ao Agente.
+2.  **Execução:** O Agente invoca o `scrape.js`.
+3.  **Ingestão:** O Agente lê o Markdown gerado para entender o problema/solução.
+4.  **Ação:** O Agente utiliza os blocos de código e comandos extraídos no JSON para executar a tarefa solicitada.

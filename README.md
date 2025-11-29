@@ -1,83 +1,81 @@
-# 🕷️ Metodologia Scrape: Agent-First Data Extraction Framework
+# 🕷️ Metodologia Scrape
 
-> **Versão:** 5.3 (Stealth Edition)
-> **Autor:** Deivison Santana (@deivisan)
-> **Status:** 🟢 Production Ready (Termux/Android Compatible)
+> **Versão:** 6.0 (Universal)
+> **Compatibilidade:** Android (Termux), Linux, Windows, macOS.
 
-Este repositório não é apenas um web scraper; é uma **Interface de Inteligência** que transforma o caos da web (HTML não estruturado, SPAs, Chats de IA) em dados estruturados prontos para consumo por Agentes de IA e automação.
-
----
-
-## 🧠 O Conceito "Agent-First"
-
-A maioria dos scrapers foca em baixar HTML. Este framework foca em **Entender o Contexto**.
-
-1.  **Estrutura Hierárquica:** Não extraímos apenas texto; identificamos *Quem* falou (Falante), *Quando* (Timestamp) e *Como* (Bloco de Código vs Texto).
-2.  **Detecção de Intenção:** O script analisa o conteúdo para identificar:
-    *   🛠️ **Comandos de Terminal** sugeridos.
-    *   📂 **Ações de Arquivo** (Criar/Editar).
-    *   🌐 **Pesquisas Web** implícitas.
-    *   ✅ **Validação Humana** (O usuário aceitou ou rejeitou a resposta?).
-3.  **Resiliência:** Projetado para rodar em ambientes hostis (como celulares Android via Termux) e evadir proteções modernas (Cloudflare).
+Uma ferramenta CLI robusta para extrair, estruturar e analisar conversas de interfaces web (como Grok, ChatGPT) e documentações, gerando datasets limpos para consumo por Agentes de IA e desenvolvedores.
 
 ---
 
-## 🛠️ Tecnologias & Arquitetura
+## 🚀 Como Usar
 
-*   **Engine:** `Puppeteer-Extra` com `Stealth Plugin` (Evasão de Bot Detection).
-*   **Ambiente:** Otimizado para **Termux/Android** (usa Chromium nativo via `pkg install chromium`).
-*   **Output:** Gera simultaneamente:
-    *   📄 **Markdown:** Legível para humanos e LLMs.
-    *   JSON **JSON:** Estruturado para automação e ingestão por APIs.
+### Pré-requisitos
+
+*   **Node.js** (v18 ou superior)
+*   **Chromium/Chrome** instalado no sistema.
+
+### Instalação
+
+1.  Clone o repositório:
+    ```bash
+    git clone https://github.com/Deivisan/Metodologia-Scrape.git
+    cd Metodologia-Scrape
+    ```
+
+2.  Instale as dependências:
+    ```bash
+    npm install
+    ```
+
+3.  **Usuários Termux (Android):**
+    Certifique-se de ter o Chromium instalado via pacote do sistema, pois o Puppeteer não consegue baixar binários no Android.
+    ```bash
+    pkg install chromium
+    ```
 
 ---
 
-## 🚀 Como Usar (Termux/Linux)
+### Execução
 
-### 1. Instalação
+O script detecta automaticamente o ambiente (Termux vs Desktop) e ajusta as configurações do navegador.
 
 ```bash
-# 1. Instalar dependências de sistema (Termux)
-pkg install chromium nodejs git
-
-# 2. Clonar e instalar pacotes Node
-git clone https://github.com/Deivisan/Metodologia-Scrape.git
-cd Metodologia-Scrape
-npm install
+node scrape.js "URL_DO_ALVO"
 ```
 
-### 2. Execução
-
-Para capturar uma conversa pública (ex: Grok, ChatGPT) ou qualquer site:
-
+**Exemplo:**
 ```bash
-node scrape.js "https://grok.com/share/seu-link-aqui"
+node scrape.js "https://grok.com/share/exemplo-uuid"
 ```
 
-### 3. Resultado
+---
 
-Os arquivos serão salvos em `captures/`:
-*   `UUID.json`: Contém a árvore de objetos, metadados e análise de intenções.
-*   `UUID.md`: O relatório formatado.
+## 📂 Estrutura de Saída
+
+Os resultados são salvos na pasta `captures/`:
+
+1.  **`UUID.json`**: Dados estruturados brutos. Contém metadados, array de mensagens, blocos de código identificados e intenções detectadas (ex: solicitação de criação de arquivo). Ideal para ingestão por outros scripts.
+2.  **`UUID.md`**: Relatório formatado em Markdown. Ideal para leitura humana ou para alimentar o contexto de LLMs em editores de código (VS Code/Cursor).
 
 ---
 
-## 🔮 Heurísticas Avançadas (v5.3)
+## 🤖 Integração com Agentes de IA (VS Code)
 
-O script `scrape.js` possui algoritmos específicos para lidar com chats de IA onde os metadados são escassos:
+Se você utiliza agentes como **Copilot**, **Cline**, **Roo Code** ou **Qwen** dentro do VS Code, este repositório serve como uma "ferramenta de visão".
 
-*   **Detecção de Falante:** Usa padrões de linguagem natural ("Eu sou Grok", "Crie um código") e alternância de turnos para identificar se o texto pertence ao **Usuário** ou à **IA**, mesmo sem seletores CSS claros.
-*   **Extração de Código:** Identifica blocos de código (` ``` `) e preserva a linguagem para syntax highlighting.
-*   **Evasão Cloudflare:** Detecta challenges e aguarda resolução automática ou manual.
+**Instrução para o Agente:**
+> "Use o script `scrape.js` deste repositório para ler o link X e me dar o resumo."
 
----
-
-## 📂 Estrutura do Repositório
-
-*   `scrape.js`: O cérebro da operação. Script Node.js robusto.
-*   `Metodologia-Scrape.md`: O manifesto teórico.
-*   `captures/`: Diretório de saída (ignorado no git, mas útil para testes locais).
+O Agente executará o comando Node e lerá o arquivo `.md` gerado, ganhando acesso imediato ao conteúdo da página sem precisar de um navegador visual.
 
 ---
 
-> *"Dados são o novo petróleo, mas dados estruturados são a gasolina refinada que move os Agentes."*
+## 🛠️ Detalhes Técnicos
+
+*   **Engine:** Puppeteer Extra + Stealth Plugin (para evitar bloqueios simples de WAF).
+*   **Heurística:** O script não depende apenas de seletores CSS fixos. Ele analisa o conteúdo do texto para inferir quem está falando (Usuário vs IA), garantindo coerência mesmo se o layout do site mudar.
+*   **Intents:** O parser identifica automaticamente quando um comando de terminal ou código é fornecido, marcando-o no JSON para fácil extração.
+
+---
+
+**Autor:** Deivison Santana (@deivisan)
