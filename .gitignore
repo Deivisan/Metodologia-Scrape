@@ -1,0 +1,30 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Profiles do Chrome
+chrome-profile-*/
+user-data-dir-*/
+
+# Capturas temporárias (manter apenas exemplos)
+captures/*.html
+captures/*.png
+!captures/README.md
+
+# Logs
+logs/
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
