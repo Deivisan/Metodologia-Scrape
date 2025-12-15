@@ -1,0 +1,25 @@
+{
+  "name": "metodologia-scrape",
+  "version": "6.0.0",
+  "description": "Framework universal para extração de conversas de IA (Grok, ChatGPT, Claude, etc.)",
+  "main": "scrape.js",
+  "scripts": {
+    "scrape": "node scrape.js",
+    "test": "node scrape.js https://grok.com/share/c2hhcmQtMg_15af1a1b-4c4d-47a8-99c4-31558af7ecc2"
+  },
+  "keywords": [
+    "scraping",
+    "ai",
+    "grok",
+    "playwright",
+    "puppeteer"
+  ],
+  "author": "Deivison Santana (@deivisan)",
+  "license": "MIT",
+  "dependencies": {
+    "playwright-core": "^1.48.0",
+    "puppeteer": "^24.33.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}

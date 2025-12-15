@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "uuid": "c2hhcmQtMg_15af1a1b-4c4d-47a8-99c4-31558af7ecc2",
+    "sourceUrl": "https://grok.com/share/c2hhcmQtMg_15af1a1b-4c4d-47a8-99c4-31558af7ecc2?rid=8bb4a125-6593-495d-b36b-5646d027d421",
+    "capturedAt": "2025-12-15T19:32:30.190Z",
+    "environment": "Desktop",
+    "engine": "playwright"
+  },
+  "conversation": [
+    {
+      "author": "System",
+      "content": "grok.com\n\nVerificando se você é humano. Isso pode levar alguns segundos.\n\ngrok.com precisa revisar a segurança da sua conexão antes de prosseguir.\nRay ID: 9ae85f1c68b96292\nPara obter assistência, acesse a Central de ajuda da Cloudflare.",
+      "type": "raw"
+    }
+  ],
+  "raw": [
+    {
+      "text": "grok.com\n\nVerificando se você é humano. Isso pode levar alguns segundos.\n\ngrok.com precisa revisar a segurança da sua conexão antes de prosseguir.\nRay ID: 9ae85f1c68b96292\nPara obter assistência, acesse a Central de ajuda da Cloudflare.",
+      "type": "raw"
+    }
+  ]
+}
