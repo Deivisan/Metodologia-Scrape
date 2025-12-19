@@ -4,9 +4,10 @@
 
 ## 📊 Informações do Projeto
 
-**Tipo:** Node.js, Documentação
+**Tipo:** Bun Runtime, Documentação
 **Linguagens:** JavaScript/TypeScript
-**Runtime:** NODE
+**Runtime:** BUN
+**Package Manager:** bun
 
 ## 🚀 Comandos Principais
 
@@ -38,8 +39,8 @@ bun run test
 
 ### Contexto Específico
 
-- Runtime: Node.js
-- Gerenciador: undefined
+- Runtime: Bun (ultrafast JavaScript runtime)
+- Gerenciador: bun
 
 ### Integração OpenCode
 
