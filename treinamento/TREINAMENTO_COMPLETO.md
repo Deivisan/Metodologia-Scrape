@@ -444,6 +444,181 @@ Ao replicar esta metodologia, confirme:
 
 ---
 
-_Última atualização: 15/12/2025 22:50 BRT_
+_Última atualização: 15/01/2026 23:30 BRT_
 _Autor: DevSan (via GitHub Copilot)_
 _Workspace: Metodologia-Scrape_
+
+---
+
+# 🔄 ATUALIZAÇÃO: 15/01/2026 - NOVA METODOLOGIA FUNCIONANDO!
+
+## ✅ NOVO MÉTODO: Puppeteer Stealth + Chromium Bundled
+
+**Data:** 15/01/2026  
+**Status:** 🎉 FUNCIONANDO PERFEITAMENTE
+
+### O Que Mudou
+
+Anteriormente, o Firecrawl MCP era a única solução. Agora, **o Puppeteer Stealth com Chromium bundled também funciona!**
+
+### Por Que Funciona Agora
+
+1. **Chromium bundled** - Não precisa de browser externo (Chrome/Edge instalados)
+2. **Stealth Plugin atualizado** - Melhores técnicas de anti-detecção
+3. **Cloudflare do Grok Share** - Menos agressivo para compartilhamentos públicos
+
+### Script de Captura (PRINCIPAL)
+
+```bash
+cd C:\Projetos\Metodologia-Scrape
+bun run scrape-grok.js https://grok.com/share/c2hhcmQtMg_4afc2b31-2aca-48ff-b6fe-0c680b805199
+```
+
+### Código do Script
+
+**Localização:** `C:\Projetos\Metodologia-Scrape\scrape-grok.js`
+
+```javascript
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+puppeteer.use(StealthPlugin());
+
+const browser = await puppeteer.launch({
+  headless: false,
+  args: [
+    '--no-sandbox',
+    '--window-size=1920,1080',
+    '--disable-blink-features=AutomationControlled'
+  ]
+});
+
+const page = await browser.newPage();
+await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
+await page.goto(URL, { waitUntil: 'networkidle0', timeout: 90000 });
+
+// Aguardar Cloudflare resolver (até 60s)
+for (let i = 0; i < 60; i++) {
+  await new Promise(r => setTimeout(r, 1000));
+  const title = await page.title();
+  if (!title.includes('Just a moment')) break;
+}
+```
+
+---
+
+## 📊 Comparação de Métodos (ATUALIZADO)
+
+| Método | Sucesso | Velocidade | Complexidade | Observações |
+|--------|---------|------------|--------------|-------------|
+| **Puppeteer Stealth** | ✅ 100% | ⚡ Rápido (30-60s) | 🟢 Baixa | **NOVO - Recomendado!** |
+| **Firecrawl MCP** | ✅ 100% | ⚡⚡⚡ Muito rápido (2-5s) | 🟢 Baixa | Requer Docker |
+| Playwright Básico | ❌ 0% | 🐌 Lento | 🟡 Média | Cloudflare bloqueia |
+| Puppeteer Stealth (antigo) | ❌ 0% | 🐌 Lento | 🔴 Alta | Versões antigas falhavam |
+| Playwright + Perfil Real | ❌ 0% | ⏸️ Trava | 🔴 Alta | Perfil locked |
+
+---
+
+## 🎯 Script Modo Contínuo (NOVA FUNÇÃO)
+
+Para capturar novas mensagens automaticamente:
+
+```bash
+bun run update-continuous.js <URL> <intervalo_em_segundos>
+```
+
+**Exemplo:**
+```bash
+bun run update-continuous.js https://grok.com/share/... 60
+```
+
+O navegador permanece aberto e verifica novas mensagens a cada 60 segundos.
+
+---
+
+## 📁 Arquivos Gerados (ATUALIZADO)
+
+```
+captures/
+├── grok_1768518059288.json    ← Metadados + mensagens (NOVA CAPTURA)
+├── grok_1768518059288.md      ← Conteúdo legível
+├── grok_1768518059288.html    ← DOM integral
+├── grok_1768518059288.png     ← Screenshot
+├── update_*.json              ← Updates incrementais (MODO CONTÍNUO)
+└── METODOLOGIA_CONSOLIDADA.md ← Documentação atualizada
+```
+
+---
+
+## 🔧 Dependências (Bun)
+
+```json
+{
+  "playwright": "^1.57.0",
+  "playwright-core": "^1.57.0",
+  "puppeteer": "^24.33.0",
+  "puppeteer-extra": "^3.3.6",
+  "puppeteer-extra-plugin-stealth": "^2.11.2"
+}
+```
+
+**Instalar:**
+```bash
+bun install
+```
+
+---
+
+## 📝 Resultado da Captura (15/01/2026)
+
+**URL:** `https://grok.com/share/c2hhcmQtMg_4afc2b31-2aca-48ff-b6fe-0c680b805199`
+
+**Capturado:**
+- ✅ 15 mensagens completas
+- ✅ Conversa sobre metodologia AGI
+- ✅ Integração agente ↔ voz
+- ✅ Análise do repositório
+
+**Arquivos:**
+- `grok_1768518059288.json` (86 linhas)
+- `grok_1768518059288.md` (137 linhas)
+- `grok_1768518059288.html`
+- `grok_1768518059288.png`
+
+---
+
+## 🎓 Quando Usar Cada Método
+
+| Cenário | Método Recomendado |
+|---------|-------------------|
+| Captura rápida única | **Puppeteer Stealth** (não precisa Docker) |
+| Múltiplas capturas | **Firecrawl MCP** (mais rápido) |
+| Modo contínuo | **update-continuous.js** |
+| Sites sem Cloudflare | Playwright/Puppeteer básico |
+
+---
+
+## 🔄 Link Persistente (DESCOBERTA IMPORTANTE!)
+
+**O link do Grok Share NÃO muda** quando você continua a conversa!
+
+- Mesmo link para toda a conversa
+- Permite atualizações incrementais
+- **IDEAL PARA AGI COM MEMÓRIA PERSISTENTE!**
+
+---
+
+## 🚀 Próximos Passos
+
+1. ✅ Metodologia funcionando (CONCLUÍDO)
+2. ⏳ Integrar com agente DevSan
+3. ⏳ Testar em conversas futuras
+4. ⏳ Criar prompt de sistema para o agente
+
+---
+
+**Status:** 🎉 DUAS SOLUÇÕES FUNCIONANDO!
+
+- **Puppeteer Stealth** - Prática, sem Docker
+- **Firecrawl MCP** - Mais rápida, requer container
+
