@@ -1,0 +1,36 @@
+{
+  "name": "mcp-grok-scraper",
+  "version": "1.0.0",
+  "description": "MCP Server for scraping Grok Share conversations with Puppeteer Stealth",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mcp-grok-scraper": "dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build --target=bun index.ts --outdir=dist",
+    "dev": "bun run --watch index.ts",
+    "test": "bun test",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "grok",
+    "scraper",
+    "puppeteer",
+    "ai",
+    "conversation"
+  ],
+  "author": "Deivison Santana (@deivisan)",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^24.33.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "typescript": "^5.3.0"
+  }
+}
