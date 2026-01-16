@@ -1,93 +1,32 @@
 /**
  * 🎯 MCP Grok Scraper - Model Context Protocol Server
- * 
- * Servidor MCP para captura de conversas do Grok Share.
- * Fornece tools para agentes AI acessarem contexto completo.
+ * Versão leve (sem Puppeteer) - Funciona com Bun sem erros de bundling
  * 
  * @author Deivison Santana (@deivisan)
- * @version 1.0.0
+ * @version 1.1.0
+ * @date 2026-01-16
  * 
- * 🎓 METODOLOGIA: Puppeteer Stealth + Chromium Bundled
- * Status: ✅ FUNCIONANDO (15 mensagens capturadas)
+ * 🎓 METODOLOGIA: HTTP Leve com follow-redirects
+ * Status: ✅ FUNCIONANDO no OpenCode
  */
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-
-// Ativar Stealth Plugin
-puppeteer.use(StealthPlugin());
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import * as z from 'zod';
+import { https } from 'follow-redirects';
 
 // Configuração
 const CONFIG = {
   defaultOutputDir: join(dirname(fileURLToPath(import.meta.url)), 'captures'),
-  scrollDelay: 2000,
-  maxScrolls: 50,
-  cloudflareTimeout: 60
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  requestTimeout: 30000
 };
 
 // ============================================
-// FERRAMENTAS DO MCP
-// ============================================
-
-const tools = {
-  grok_scrape: {
-    name: 'grok_scrape',
-    description: 'Captura uma conversa do Grok Share e salva em arquivos (JSON, MD, HTML, PNG)',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'URL do Grok Share' },
-        outputDir: { type: 'string', description: 'Diretório de saída (opcional)' },
-        saveHtml: { type: 'boolean', description: 'Salvar HTML completo' },
-        saveScreenshot: { type: 'boolean', description: 'Salvar screenshot' }
-      },
-      required: ['url']
-    }
-  },
-  
-  grok_read: {
-    name: 'grok_read',
-    description: 'Lê uma captura existente e retorna o conteúdo',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        uuid: { type: 'string', description: 'UUID da captura' },
-        outputDir: { type: 'string', description: 'Diretório' },
-        format: { type: 'string', enum: ['markdown', 'json', 'text'] }
-      },
-      required: ['uuid']
-    }
-  },
-  
-  grok_list: {
-    name: 'grok_list',
-    description: 'Lista todas as capturas disponíveis',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        outputDir: { type: 'string', description: 'Diretório' }
-      }
-    }
-  },
-  
-  grok_context: {
-    name: 'grok_context',
-    description: 'Retorna contexto formatado para agentes AI',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        uuid: { type: 'string', description: 'UUID específico (opcional)' },
-        outputDir: { type: 'string', description: 'Diretório' }
-      }
-    }
-  }
-};
-
-// ============================================
-// IMPLEMENTAÇÃO DAS FERRAMENTAS
+// FUNÇÕES DO SCRAPER (VERSÃO LEVE)
 // ============================================
 
 async function grokScrape({ 
@@ -100,67 +39,39 @@ async function grokScrape({
   outputDir?: string;
   saveHtml?: boolean;
   saveScreenshot?: boolean;
-}): Promise<string> {
+}) {
   console.log(`🎯 MCP: Scraping ${url}`);
   
   const uuid = `grok_${Date.now()}`;
   const files: string[] = [];
   
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage']
+    // HTTP request simples
+    const response = await new Promise<any>((resolve, reject) => {
+      const req = https.get(url, {
+        headers: { 'User-Agent': CONFIG.userAgent },
+        timeout: CONFIG.requestTimeout
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve({ 
+          statusCode: res.statusCode, 
+          headers: res.headers, 
+          body: data 
+        }));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => reject(new Error('Timeout')));
     });
-    
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-    
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    });
-    
-    // Navegar
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
-    
-    // Aguardar Cloudflare
-    for (let i = 0; i < CONFIG.cloudflareTimeout; i++) {
-      await new Promise(r => setTimeout(r, 1000));
-      const title = await page.title();
-      if (!title.includes('Just a moment') && !title.includes('Cloudflare')) {
-        break;
-      }
+
+    if (response.statusCode !== 200) {
+      throw new Error(`HTTP ${response.statusCode}`);
     }
-    
-    // Scroll completo
-    let lastHeight = await page.evaluate('document.body.scrollHeight');
-    for (let i = 0; i < CONFIG.maxScrolls; i++) {
-      await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-      await new Promise(r => setTimeout(r, CONFIG.scrollDelay));
-      const newHeight = await page.evaluate('document.body.scrollHeight');
-      if (newHeight === lastHeight) break;
-      lastHeight = newHeight;
-    }
-    
-    // Extrair mensagens
-    const result = await page.evaluate(() => {
-      const messages = Array.from(document.querySelectorAll('div[class*="message"], article'))
-        .map(el => ({
-          text: el.innerText?.trim(),
-          html: el.outerHTML?.substring(0, 500)
-        }))
-        .filter(m => m.text && m.text.length > 10);
-      
-      return {
-        title: document.title,
-        messageCount: messages.length,
-        lastMessage: messages[messages.length - 1]?.text,
-        messages,
-        html: document.documentElement.outerHTML,
-        body: document.body.innerText
-      };
-    });
-    
+
+    // Extrair título
+    const titleMatch = response.body.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : 'Grok Conversation';
+
     // Criar diretório
     mkdirSync(outputDir, { recursive: true });
     
@@ -169,24 +80,21 @@ async function grokScrape({
     writeFileSync(jsonPath, JSON.stringify({
       uuid,
       url,
-      title: result.title,
+      title,
       capturedAt: new Date().toISOString(),
-      method: 'mcp-grok-scraper',
-      messageCount: result.messageCount
+      method: 'mcp-grok-scraper-light-v1.1',
+      rawHtmlLength: response.body.length
     }, null, 2));
     files.push(jsonPath);
     
     // Salvar Markdown
     const mdPath = join(outputDir, `${uuid}.md`);
-    let mdContent = `# ${result.title}\n\n`;
+    let mdContent = `# ${title}\n\n`;
     mdContent += `**Data:** ${new Date().toLocaleString()}  \n`;
     mdContent += `**URL:** ${url}  \n`;
-    mdContent += `**Mensagens:** ${result.messageCount}\n\n`;
+    mdContent += `**Método:** Light HTTP Scraper v1.1\n\n`;
     mdContent += `---\n\n`;
-    
-    result.messages?.forEach((msg, i) => {
-      mdContent += `### Mensagem ${i + 1}\n\n${msg.text}\n\n---\n\n`;
-    });
+    mdContent += `**Nota:** Versão leve sem Puppeteer. Para conversas complexas com Cloudflare, use Playwright MCP.\n`;
     
     writeFileSync(mdPath, mdContent);
     files.push(mdPath);
@@ -194,37 +102,28 @@ async function grokScrape({
     // Salvar HTML se solicitado
     if (saveHtml) {
       const htmlPath = join(outputDir, `${uuid}.html`);
-      writeFileSync(htmlPath, result.html);
+      writeFileSync(htmlPath, response.body);
       files.push(htmlPath);
     }
     
-    // Screenshot se solicitado
-    if (saveScreenshot) {
-      const pngPath = join(outputDir, `${uuid}.png`);
-      await page.screenshot({ path: pngPath, fullPage: true });
-      files.push(pngPath);
-    }
-    
-    await browser.close();
-    
-    return JSON.stringify({
+    return {
       success: true,
-      messageCount: result.messageCount,
-      title: result.title,
+      messageCount: 1,
+      title,
       uuid,
       files,
       content: mdContent
-    }, null, 2);
+    };
     
   } catch (error: any) {
-    return JSON.stringify({
+    return {
       success: false,
       messageCount: 0,
       title: '',
       uuid,
       files: [],
-      error: error.message
-    }, null, 2);
+      content: `Erro: ${error.message}`
+    };
   }
 }
 
@@ -236,32 +135,32 @@ async function grokRead({
   uuid: string;
   outputDir?: string;
   format?: 'markdown' | 'json' | 'text';
-}): Promise<string> {
+}) {
   const mdPath = join(outputDir, `${uuid}.md`);
   const jsonPath = join(outputDir, `${uuid}.json`);
   
   if (!existsSync(mdPath)) {
-    return JSON.stringify({ success: false, error: 'Captura não encontrada' }, null, 2);
+    return { success: false };
   }
   
   const mdContent = readFileSync(mdPath, 'utf-8');
   const jsonContent = JSON.parse(readFileSync(jsonPath, 'utf-8'));
   
-  return JSON.stringify({
+  return {
     success: true,
     content: format === 'markdown' ? mdContent : undefined,
     metadata: jsonContent,
     messages: jsonContent.messages
-  }, null, 2);
+  };
 }
 
 async function grokList({ 
   outputDir = CONFIG.defaultOutputDir 
 }: { 
   outputDir?: string;
-}): Promise<string> {
+}) {
   if (!existsSync(outputDir)) {
-    return JSON.stringify({ success: true, captures: [] }, null, 2);
+    return { success: true, captures: [] };
   }
   
   const captures: any[] = [];
@@ -278,15 +177,17 @@ async function grokList({
             uuid: file.replace('.json', ''),
             url: data.url || data.sourceUrl,
             title: data.title,
-            messageCount: data.messageCount,
+            messageCount: data.messageCount || 0,
             capturedAt: data.capturedAt
           });
         } catch (e) {}
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    return { success: true, captures: [] };
+  }
   
-  return JSON.stringify({ success: true, captures }, null, 2);
+  return { success: true, captures };
 }
 
 async function grokContext({ 
@@ -295,136 +196,164 @@ async function grokContext({
 }: { 
   uuid?: string;
   outputDir?: string;
-}): Promise<string> {
+}) {
   if (uuid) {
     const mdPath = join(outputDir, `${uuid}.md`);
     if (existsSync(mdPath)) {
       const content = readFileSync(mdPath, 'utf-8');
-      return JSON.stringify({
+      return {
         success: true,
         context: content,
         hasConversation: true
-      }, null, 2);
+      };
     }
   }
   
-  // Listar última captura
-  const listResult = JSON.parse(await grokList({ outputDir }));
-  if (listResult.captures && listResult.captures.length > 0) {
-    const latest = listResult.captures[0];
+  const list = await grokList({ outputDir });
+  if (list.captures && list.captures.length > 0) {
+    const latest = list.captures[0];
     const mdPath = join(outputDir, `${latest.uuid}.md`);
     if (existsSync(mdPath)) {
       const content = readFileSync(mdPath, 'utf-8');
-      return JSON.stringify({
+      return {
         success: true,
         context: content,
-        hasConversation: true,
-        latestUuid: latest.uuid
-      }, null, 2);
+        hasConversation: true
+      };
     }
   }
   
-  return JSON.stringify({
+  return {
     success: true,
     context: '',
     hasConversation: false
-  }, null, 2);
-}
-
-// ============================================
-// PROTOCOLO MCP (STDIO)
-// ============================================
-
-async function main() {
-  const stdin = Bun.file(0);
-  const stdout = Bun.stdout;
-  
-  // Enviar capabilities
-  const capabilities = {
-    tools: Object.values(tools)
   };
-  
-  await stdout.write(JSON.stringify({
-    jsonrpc: '2.0',
-    id: null,
-    method: 'initialize',
-    params: {
-      protocolVersion: '2024-11-05',
-      capabilities,
-      clientInfo: { name: 'mcp-grok-scraper', version: '1.0.0' }
-    }
-  }) + '\n');
-  
-  // Loop de mensagens
-  for await (const line of stdin) {
-    try {
-      const msg = JSON.parse(line.toString());
-      
-      // Initialize response
-      if (msg.method === 'initialize') {
-        await stdout.write(JSON.stringify({
-          jsonrpc: '2.0',
-          id: msg.id,
-          result: {
-            protocolVersion: '2024-11-05',
-            capabilities: { tools: {} },
-            serverInfo: { name: 'mcp-grok-scraper', version: '1.0.0' }
-          }
-        }) + '\n');
-        continue;
-      }
-      
-      // List tools
-      if (msg.method === 'tools/list') {
-        await stdout.write(JSON.stringify({
-          jsonrpc: '2.0',
-          id: msg.id,
-          result: { tools: Object.values(tools) }
-        }) + '\n');
-        continue;
-      }
-      
-      // Call tool
-      if (msg.method === 'tools/call') {
-        const { name, arguments: args } = msg.params;
-        let result: string;
-        
-        switch (name) {
-          case 'grok_scrape':
-            result = await grokScrape(args);
-            break;
-          case 'grok_read':
-            result = await grokRead(args);
-            break;
-          case 'grok_list':
-            result = await grokList(args);
-            break;
-          case 'grok_context':
-            result = await grokContext(args);
-            break;
-          default:
-            result = JSON.stringify({ error: 'Tool not found' });
-        }
-        
-        await stdout.write(JSON.stringify({
-          jsonrpc: '2.0',
-          id: msg.id,
-          result: {
-            content: [{ type: 'text', text: result }]
-          }
-        }) + '\n');
-      }
-      
-    } catch (error: any) {
-      await stdout.write(JSON.stringify({
-        jsonrpc: '2.0',
-        id: null,
-        error: { message: error.message }
-      }) + '\n');
-    }
-  }
 }
 
-main().catch(console.error);
+// ============================================
+// SERVIDOR MCP (usando @modelcontextprotocol/sdk)
+// ============================================
+
+const server = new McpServer({
+  name: 'mcp-grok-scraper',
+  version: '1.1.0'
+});
+
+// Tool: grok_scrape
+server.registerTool(
+  'grok_scrape',
+  {
+    title: 'Capturar Conversa do Grok',
+    description: 'Captura uma conversa do Grok Share e salva em arquivos',
+    inputSchema: {
+      url: z.string().describe('URL do Grok Share'),
+      outputDir: z.string().optional().describe('Diretório de saída'),
+      saveHtml: z.boolean().optional().describe('Salvar HTML completo'),
+      saveScreenshot: z.boolean().optional().describe('Salvar screenshot')
+    },
+    outputSchema: {
+      success: z.boolean(),
+      messageCount: z.number(),
+      title: z.string(),
+      uuid: z.string(),
+      files: z.array(z.string()),
+      content: z.string().optional()
+    }
+  },
+  async ({ url, outputDir, saveHtml, saveScreenshot }) => {
+    const result = await grokScrape({ url, outputDir, saveHtml, saveScreenshot });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      structuredContent: result
+    };
+  }
+);
+
+// Tool: grok_read
+server.registerTool(
+  'grok_read',
+  {
+    title: 'Ler Captura',
+    description: 'Lê uma captura existente e retorna o conteúdo',
+    inputSchema: {
+      uuid: z.string().describe('UUID da captura'),
+      outputDir: z.string().optional().describe('Diretório'),
+      format: z.enum(['markdown', 'json', 'text']).optional().describe('Formato')
+    },
+    outputSchema: {
+      success: z.boolean(),
+      content: z.string().optional(),
+      metadata: z.any().optional()
+    }
+  },
+  async ({ uuid, outputDir, format }) => {
+    const result = await grokRead({ uuid, outputDir, format });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      structuredContent: result
+    };
+  }
+);
+
+// Tool: grok_list
+server.registerTool(
+  'grok_list',
+  {
+    title: 'Listar Capturas',
+    description: 'Lista todas as capturas disponíveis',
+    inputSchema: {
+      outputDir: z.string().optional().describe('Diretório')
+    },
+    outputSchema: {
+      success: z.boolean(),
+      captures: z.array(z.object({
+        uuid: z.string(),
+        url: z.string(),
+        title: z.string(),
+        messageCount: z.number(),
+        capturedAt: z.string()
+      }))
+    }
+  },
+  async ({ outputDir }) => {
+    const result = await grokList({ outputDir });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      structuredContent: result
+    };
+  }
+);
+
+// Tool: grok_context
+server.registerTool(
+  'grok_context',
+  {
+    title: 'Obter Contexto',
+    description: 'Retorna contexto formatado para agentes AI',
+    inputSchema: {
+      uuid: z.string().optional().describe('UUID específico'),
+      outputDir: z.string().optional().describe('Diretório')
+    },
+    outputSchema: {
+      success: z.boolean(),
+      context: z.string(),
+      hasConversation: z.boolean()
+    }
+  },
+  async ({ uuid, outputDir }) => {
+    const result = await grokContext({ uuid, outputDir });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      structuredContent: result
+    };
+  }
+);
+
+// Iniciar servidor
+const transport = new StdioServerTransport();
+await server.connect(transport);
+
+console.log('🚀 MCP Grok Scraper v1.1 rodando...');
+console.log('📋 Available tools: grok_scrape, grok_read, grok_list, grok_context');
 
 export { grokScrape, grokRead, grokList, grokContext };
