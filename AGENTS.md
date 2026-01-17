@@ -1,60 +1,67 @@
-# Metodologia-Scrape
+# 🤖 AGENTS.MD - Metodologia-Scrape
 
-> Perfil DevSan A.G.I. - Configuração Inteligente OpenCode
-
-## 📊 Informações do Projeto
-
-**Tipo:** Bun Runtime, Documentação
-**Linguagens:** JavaScript/TypeScript
-**Runtime:** BUN
-**Package Manager:** bun
-
-## 🚀 Comandos Principais
-
-```bash
-# Testes
-bun run test
-
-```
-
-## 📁 Estrutura
-
-- Estrutura padrão do projeto
-
-## 🤖 Notas DevSan A.G.I.
-
-### Modos Recomendados
-
-- **devsan**: Desenvolvimento geral, implementação de features, correção de bugs
-- **devsan-max**: Refatorações grandes, mudanças de arquitetura, otimizações profundas
-- **devsan-plan**: Planejamento estratégico, criação de ROADMAP.md, análise de requisitos
-
-### Comportamentos Esperados
-
-- **YOLO Mode Ativo**: Máxima eficiência e autonomia nas decisões técnicas
-- **Padrões de Código**: Seguir convenções estabelecidas no projeto
-- **Qualidade**: Manter testes, documentação e boas práticas
-- **Commits Inteligentes**: Mensagens descritivas e commits atômicos
-- **Contexto Preservado**: Manter histórico e decisões documentadas
-
-### Contexto Específico
-
-- Runtime: Bun (ultrafast JavaScript runtime)
-- Gerenciador: bun
-
-### Integração OpenCode
-
-Este perfil foi criado para funcionar perfeitamente com:
-
-- **OpenCode CLI**: Desenvolvimento via terminal com contexto completo
-- **OpenCode Desktop**: Interface gráfica para gestão de projetos
-- **Protocolos MCP**: Comunicação inteligente entre agentes
-- **Contexto Persistente**: Memória de longo prazo das decisões técnicas
+> Contexto completo para agentes AGI trabalharem neste repositório
 
 ---
 
-*Perfil DevSan A.G.I. gerado automaticamente com Bun*
+## 📊 INFORMAÇÕES DO PROJETO
 
-**Orquestrado por OpenCode - A.G.I. pessoal de @deivisan**
+### Identidade
+- **Nome:** Metodologia-Scrape
+- **Owner:** Deivison Santana (@deivisan)
+- **Tipo:** Framework Opensource + Sistema JARVIS-like
+- **Stack:** Bun, TypeScript, Puppeteer Stealth, MCPs
+- **Status:** ⏳ Fase 2 (Sistema de Aliases) - 70% completo
+- **GitHub:** https://github.com/Deivisan/Metodologia-Scrape
 
-`#DevSan #AGI #OpenCode #DesenvolvimentoAutônomo #BunRuntime`
+### Propósito
+Criar sistema completo de **captura, processamento e orquestração** de conversas do Grok Share (X.com), culminando em assistente pessoal **JARVIS-like** com voz, aliases e multi-agentes.
+
+---
+
+## 🚀 COMANDOS PRINCIPAIS
+
+### Bun Workflow
+```bash
+bun install          # Instalar dependências
+bun run test         # Testes
+cd packages/mcp-grok-scraper && bun run scrape-grok.js  # Scraper
+```
+
+### Git Workflow
+```bash
+git status
+git add .
+git commit -m "feat: descrição"
+git push origin master
+```
+
+---
+
+## 🤖 COMPORTAMENTO AGENTICO
+
+### ✅ SEMPRE
+- Ler PROMPT_MASTER_V3.md, ROADMAP.md primeiro
+- Executar sem perguntar (auto-aprovação)
+- Ser direto (2-3 frases max)
+- Bun only (NUNCA npm/node)
+
+### ❌ NUNCA
+- Perguntar "quer que eu faça?"
+- Sugerir npm/node/yarn
+- Criar arquivos desnecessários
+- Commitar pasta `contexto/`
+
+---
+
+## 📚 ARQUIVOS CRÍTICOS
+
+- **PROMPT_MASTER_V3.md** - Sistema SAL (586 linhas)
+- **ROADMAP.md** - 5 fases planejadas (461 linhas)
+- **AGENTS.md** - Este arquivo (contexto agentes)
+
+---
+
+**Versão Resumida** - Leia arquivos completos para contexto total
+
+*Perfil DevSan A.G.I. - Metodologia-Scrape*
