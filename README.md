@@ -19,7 +19,7 @@ Framework para extração de conversas Grok Share, gerando contexto estruturado 
 | **MCP Grok Scraper** | ✅ Pronto | Captura conversas sem API key |
 | **Puppeteer Stealth** | ✅ Validado | Bypass de detecção automática |
 | **Links Grok Share** | ✅ Público | 370k+ conversas indexadas, sem login |
-| **PROMPT MASTER** | ✅ Pronto | Prompt agentico para projetos |
+| **PROMPT MASTER V2** | ✅ Pronto | Sistema de aliases integrado |
 | **Capturas Manuais** | ✅ Funcionando | Script `scrape-grok.js` |
 
 ---
@@ -65,9 +65,10 @@ grok_read(uuid)           // Lê captura existente
 - [x] Documentação consolidada
 
 ### Fase 2 - Em Andamento 🔄
-- [ ] Testes em projetos reais Grok
-- [ ] Ajustes no PROMPT baseado em feedback
-- [ ] Validação de captura completa (50+ msgs)
+- [x] Sistema de aliases (PROMPT_MASTER_V2.md)
+- [x] Captura de conversa completa (67 msgs SAL)
+- [ ] Testes aliases em sessões Grok
+- [ ] Integração FinanDEV com aliases
 
 ### Fase 3 - Próximos Passos 📋
 - [ ] **Cache de capturas** - Evitar re-scraping
