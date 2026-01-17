@@ -1,30 +1,42 @@
 {
   "name": "mcp-grok-scraper",
-  "version": "1.1.0",
-  "description": "MCP Server for scraping Grok Share conversations - Light HTTP version (no Puppeteer)",
+  "version": "2.0.0",
+  "description": "MCP Server for scraping Grok Share conversations - Multiple methodologies (Puppeteer Stealth, HTTP, Firecrawl, Exa, Tavily)",
   "type": "module",
-  "main": "index.ts",
+  "main": "index-full.ts",
   "bin": {
-    "mcp-grok-scraper": "index.ts"
+    "mcp-grok-scraper": "index-full.ts",
+    "mcp-grok-light": "index.ts"
   },
   "scripts": {
-    "start": "bun run index.ts",
-    "dev": "bun run --watch index.ts",
-    "test": "bun test"
+    "start": "bun run index-full.ts",
+    "start:light": "bun run index.ts",
+    "dev": "bun run --watch index-full.ts",
+    "test": "bun run tests/test-all.ts",
+    "test:single": "bun run tests/test-single.ts"
   },
   "keywords": [
     "mcp",
     "grok",
     "scraper",
-    "http",
+    "puppeteer",
+    "stealth",
+    "cloudflare",
+    "bypass",
     "ai",
-    "conversation"
+    "conversation",
+    "firecrawl",
+    "exa",
+    "tavily"
   ],
   "author": "Deivison Santana (@deivisan)",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
-    "follow-redirects": "^1.15.6"
+    "follow-redirects": "^1.15.6",
+    "puppeteer": "^24.33.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",
