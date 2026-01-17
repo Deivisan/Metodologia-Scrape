@@ -1,36 +1,81 @@
 {
-  "name": "mcp-grok-scraper",
-  "version": "2.0.0",
-  "description": "MCP Server for scraping Grok Share conversations - Multiple methodologies (Puppeteer Stealth, HTTP, Firecrawl, Exa, Tavily)",
+  "name": "@deivisan/mcp-grok-scraper",
+  "version": "2.0.1",
+  "description": "MCP Server for Grok Share conversation scraping - Multiple formats & methodologies",
   "type": "module",
-  "main": "index-full.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "bin": {
-    "mcp-grok-scraper": "index-full.ts",
-    "mcp-grok-light": "index.ts"
+    "grok-scraper": "dist/cli.js",
+    "grok-scraper-full": "index-full.ts",
+    "grok-scraper-light": "index.ts"
   },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./full": {
+      "import": "./index-full.ts",
+      "types": "./index-full.ts"
+    },
+    "./light": {
+      "import": "./index.ts",
+      "types": "./index.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "index.ts",
+    "index-full.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "bun run index-full.ts",
     "start:light": "bun run index.ts",
     "dev": "bun run --watch index-full.ts",
+    "build": "bun build index-full.ts --outdir=dist --target=node --format=esm --splitting --external @modelcontextprotocol/sdk --external puppeteer --external puppeteer-extra --external puppeteer-extra-plugin-stealth",
+    "build:light": "bun build index.ts --outdir=dist --target=node --format=esm --splitting --external @modelcontextprotocol/sdk --external follow-redirects",
+    "build:all": "bun run build && bun run build:light",
     "test": "bun run tests/test-all.ts",
-    "test:single": "bun run tests/test-single.ts"
+    "test:single": "bun run tests/test-single.ts",
+    "test:standalone": "bun run tests/test-standalone.ts",
+    "prepublishOnly": "bun run build:all"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "grok",
     "scraper",
     "puppeteer",
     "stealth",
-    "cloudflare",
-    "bypass",
-    "ai",
+    "cloudflare-bypass",
     "conversation",
+    "ai",
     "firecrawl",
     "exa",
-    "tavily"
+    "tavily",
+    "android-compatible",
+    "termux"
   ],
   "author": "Deivison Santana (@deivisan)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deivisan/Metodologia-Scrape.git",
+    "directory": "packages/mcp-grok-scraper"
+  },
+  "bugs": {
+    "url": "https://github.com/Deivisan/Metodologia-Scrape/issues"
+  },
+  "homepage": "https://github.com/Deivisan/Metodologia-Scrape#readme",
+  "engines": {
+    "bun": ">=1.0.0",
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
     "follow-redirects": "^1.15.6",
@@ -40,6 +85,15 @@
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",
+    "@types/node": "^20.0.0",
     "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "playwright": "^1.57.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }

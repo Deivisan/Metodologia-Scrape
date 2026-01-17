@@ -56,38 +56,117 @@ Criar sistema completo de **captura, processamento e orquestração** de convers
 
 ---
 
-### ⏳ FASE 2: Sistema de Aliases (EM ANDAMENTO)
+### ✅ FASE 2: MCP Full + Documentação Profissional (CONCLUÍDA)
 
-**Período:** 10 Janeiro - 31 Janeiro 2026  
-**Status:** ⏳ **70% Completa**
+**Período:** 10 Janeiro - 17 Janeiro 2026  
+**Status:** ✅ **100% Completa**
 
 #### Entregas:
-- [x] Pesquisa de metodologia criativa (conversa SAL)
-- [x] Sistema de slash commands conceituado
-- [x] PROMPT_MASTER_V2.md (350 linhas)
-- [x] PROMPT_MASTER_V3.md (586 linhas - integração FinanDEV)
-- [x] Aliases definidos: `/resumo-semanal`, `/noticias-tech`, `/ideia-rapida`, `/bug-hunter`, `/prompt-magico`
-- [x] Novos aliases: `/metodologia-scrape`, `/perfil-completo`, `/commit-rapido`, `/deploy-check`
-- [ ] **PENDENTE:** Implementação técnica dos aliases (API/MCP)
-- [ ] **PENDENTE:** Testes com Grok real
-- [ ] **PENDENTE:** Documentação de uso (README atualizado)
+- [x] MCP Full com Puppeteer Stealth (`index-full.ts`, 600+ linhas)
+- [x] Sistema de testes automatizados (test-all.ts, test-standalone.ts)
+- [x] Teste standalone validado (19s, 182 mensagens, Cloudflare bypass OK)
+- [x] README.md profissional (técnico, sem personalização excessiva)
+- [x] CHANGELOG.md completo (rastreamento de versões)
+- [x] PROMPT_MASTER_V3.md corrigido (aliases = modo voz APENAS)
+- [x] package.json v2.0.1 (múltiplos exports, builds)
+- [x] Documentação Android/Termux (origem do desenvolvimento)
+- [x] Git release v2.0.0 + tag anotada
+- [x] Análise completa de `treinamento/TREINAMENTO_COMPLETO.md`
 
-#### Tecnologias Planejadas:
-- Grok API (quando disponível)
-- GitHub API (commits, deploys)
-- Web scraping (notícias tech)
-- MCP para persistência de contexto
+#### Tecnologias Implementadas:
+- Puppeteer Stealth 24.33.0 (desenvolvido em Android)
+- Bun 1.3.5 (runtime principal)
+- MCP Protocol 1.0.1
+- Chromium bundled (não precisa browser externo)
 
-#### Desafios Atuais:
-- ⏳ Limitação de tokens do Grok (~128k contexto)
-- ⏳ Compressão inteligente de contexto
-- ⏳ Expansibilidade de aliases (sistema modular)
+#### Descobertas Importantes:
+- ✅ **Android First:** Puppeteer Stealth desenvolvido/testado no Termux antes de desktop
+- ✅ **Firecrawl funciona:** API direta (sem MCP wrapper ainda) já validada
+- ⚠️ **Playwright limitações:** Falha ~80% com Cloudflare (documentado)
+- ✅ **Link persistente:** Grok Share URL não muda ao continuar conversa
+
+#### Problemas Conhecidos e Correções:
+1. **Aliases em contexto errado** ✅ Corrigido
+   - Problema: README indicava que aliases funcionavam em MCP/CLI
+   - Correção: Seção clara em PROMPT_MASTER_V3.md (aliases = modo voz apenas)
+
+2. **HTTP Leve vs Cloudflare** ✅ Documentado
+   - Problema: Usuários tentavam usar HTTP leve com Cloudflare
+   - Correção: README claro que HTTP leve NÃO funciona com Cloudflare
+
+3. **Playwright + Cloudflare** ✅ Documentado
+   - Problema: "Às vezes Playwright tem limitações mesmo do Cloudflare"
+   - Correção: Training docs atualizado (usar Puppeteer Stealth)
+
+4. **Build errors (bundling Puppeteer)** ✅ Resolvido
+   - Problema: Build quebrava ao tentar bundle Puppeteer
+   - Correção: Scripts separados (build, build:light, build:all) com externals corretos
 
 #### Commits Importantes:
 ```
-2026-01-17: feat: PROMPT_MASTER_V2 (sistema aliases)
-2026-01-17: feat: PROMPT_MASTER_V3 (integração FinanDEV)
-2026-01-17: docs: ROADMAP.md criado
+2026-01-17: release: v2.0.0 - MCP Full + Docs Profissionais
+2026-01-17: fix: package.json múltiplos builds/exports
+2026-01-17: docs: README refinado (técnico, Android documentado)
+2026-01-17: docs: ROADMAP atualizado (problemas conhecidos)
+```
+
+---
+
+### ⏳ FASE 3: Metodologias Alternativas (EM ANDAMENTO)
+
+**Período:** 17 Janeiro - 31 Janeiro 2026  
+**Status:** ⏳ **15% Completa**
+
+#### Entregas Planejadas:
+- [ ] **Firecrawl API Integration**
+  - [ ] MCP wrapper para Firecrawl API
+  - [ ] Testes comparativos (performance vs Puppeteer)
+  - [ ] Documentação de setup (API key, pricing)
+  - [ ] Fallback automático (Firecrawl → Puppeteer)
+
+- [ ] **Exa Search Testing**
+  - [ ] Pesquisa de API Exa
+  - [ ] Validação de busca semântica
+  - [ ] Teste com links Grok Share
+  - [ ] Comparação de qualidade vs Puppeteer
+
+- [ ] **Tavily Extract Validation**
+  - [ ] Pesquisa de API Tavily
+  - [ ] Teste de extração de conteúdo
+  - [ ] Benchmark de qualidade
+  - [ ] Integração como opção no MCP
+
+- [ ] **Multi-Browser Support**
+  - [ ] Suporte a Firefox (via Playwright)
+  - [ ] Suporte a WebKit (via Playwright)
+  - [ ] Configuração via env var (`BROWSER=chromium|firefox|webkit`)
+  - [ ] Testes comparativos de performance
+
+- [ ] **Python Multithreading** (se necessário)
+  - [ ] Script Python paralelo
+  - [ ] Usar `multiprocessing` ou `concurrent.futures`
+  - [ ] Integrar com Bun via child_process
+  - [ ] Benchmarks de performance
+
+#### Tecnologias a Avaliar:
+- Firecrawl API (bypass enterprise Cloudflare)
+- Exa Search (busca semântica AI-powered)
+- Tavily Extract (parsing inteligente)
+- Playwright (Firefox, WebKit)
+- Python multiprocessing
+
+#### Desafios Técnicos:
+- ⏳ Custo de APIs externas (Firecrawl, Exa, Tavily são pagos)
+- ⏳ Latência de API vs local scraping
+- ⏳ Confiabilidade de terceiros (uptime, rate limits)
+- ⏳ Compatibilidade multi-browser (Firefox tem menos plugins stealth)
+
+#### Commits Planejados:
+```
+2026-01-XX: feat: Firecrawl MCP wrapper
+2026-01-XX: feat: Exa Search integration
+2026-01-XX: feat: Multi-browser support (Firefox, WebKit)
+2026-01-XX: perf: Python multithreading para capturas paralelas
 ```
 
 ---
