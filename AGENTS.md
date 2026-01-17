@@ -57,4 +57,4 @@ Este perfil foi criado para funcionar perfeitamente com:
 
 **Orquestrado por OpenCode - A.G.I. pessoal de @deivisan**
 
-`#DevSan #AGI #OpenCode #DesenvolvimentoAutônomo #BunRuntime`
+`#DevSan #AGI #OpenCode #DesenvolvimentoAutônomo #BunRuntime`
