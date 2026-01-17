@@ -22,6 +22,10 @@ logs/
 Thumbs.db
 desktop.ini
 
+# Contexto Privado (apenas local)
+contexto/
+!contexto/README.md
+
 # IDEs
 .vscode/
 .idea/
