@@ -7,6 +7,71 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [2.0.1] - 2026-01-17
+
+### 📝 REFINAMENTO DE DOCUMENTAÇÃO
+
+**Mudanças:**
+- 📝 **README:** Reescrito com foco técnico (reduzido de ~1200 para ~600 linhas)
+- 📝 **package.json:** Múltiplos builds e exports (ESM, CJS, full, light)
+- 📝 **ROADMAP:** Fase 2 marcada como 100% completa, seção de problemas conhecidos adicionada
+
+---
+
+### 📝 Mudado
+
+#### README.md - Reescrita Técnica
+- ❌ **Removido:** Contexto pessoal (menções ao FinanDEV, contexto excessivamente pessoal)
+- ✅ **Adicionado:** Origem do desenvolvimento no Android (Termux, POCO X5)
+- ✅ **Adicionado:** Seção de limitações conhecidas (Playwright + Cloudflare, HTTP leve)
+- ✅ **Adicionado:** Múltiplos formatos de release (source, NPM, binary, Docker)
+- ✅ **Melhorado:** Tom profissional, estrutura What/Why/How clara
+- ✅ **Reduzido:** De ~1200 linhas para ~600 linhas (mais focado)
+
+#### package.json - Múltiplos Exports
+```json
+{
+  "exports": {
+    ".": { "import": "./dist/index.mjs", "require": "./dist/index.js" },
+    "./full": { "import": "./index-full.ts" },
+    "./light": { "import": "./index.ts" }
+  },
+  "scripts": {
+    "build:all": "bun run build && bun run build:light",
+    "prepublishOnly": "bun run build:all"
+  }
+}
+```
+
+#### ROADMAP.md - Atualização de Status
+- ✅ **Fase 2:** Marcada como 100% completa (era 70%)
+- ✅ **Seção nova:** "Problemas Conhecidos e Correções"
+- ✅ **Documentado:** Status do Firecrawl (API funciona, wrapper MCP pendente)
+- ✅ **Documentado:** Limitações do Playwright com Cloudflare (~80% falha)
+
+---
+
+### 🔍 Documentado
+
+#### Status Técnico Atualizado
+- ✅ **Firecrawl:** API direta funciona (testado), wrapper MCP pendente (Fase 3)
+- ✅ **Playwright:** Limitações com Cloudflare documentadas (~80% taxa de falha)
+- ✅ **HTTP Leve:** Não bypassa Cloudflare (documentado em README)
+- ✅ **Puppeteer Stealth:** Desenvolvido originalmente no Android (Termux)
+
+#### Origem do Desenvolvimento
+- 📱 **Plataforma:** Android (Termux) - POCO X5 5G
+- 🐧 **Kernel:** Linux 5.4.302-Eclipse (otimizado)
+- ⚡ **Runtime:** Bun 1.3.5 (Arch Linux ARM chroot)
+- 🎯 **Sucesso:** Puppeteer Stealth funcionando após 7 tentativas falhadas
+
+---
+
+### 🚫 Breaking Changes
+**Nenhuma** - Esta release é apenas refinamento de documentação.
+
+---
+
 ## [2.0.0] - 2026-01-17
 
 ### 🎉 RELEASE MAJOR - Consolidação Completa
