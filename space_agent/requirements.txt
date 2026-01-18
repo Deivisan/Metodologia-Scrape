@@ -1,0 +1,12 @@
+# SPACE Agent Dependencies
+# =========================
+
+# Browser Automation
+playwright>=1.40.0
+
+# Data Processing
+orjson>=3.9.0
+
+# Optional: Para instalação rápida
+# pip install -r requirements.txt
+# playwright install

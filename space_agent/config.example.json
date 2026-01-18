@@ -1,0 +1,22 @@
+{
+  "url": "https://grok.com/share/SEU_LINK_AQUI",
+  "poll_interval": 5,
+  "screenshot_interval": 60,
+  "capture_screenshots": true,
+  "headless": false,
+  "message_selectors": [
+    "div[class*=\"message-bubble\"]",
+    "div[class*=\"response-content\"]",
+    "article",
+    "[data-testid*=\"message\"]",
+    "div[class*=\"Conversation\"]",
+    "div.prose",
+    ".markdown"
+  ],
+  "voice_selectors": [
+    "[data-testid*=\"voice\"]",
+    "[class*=\"voice\"]",
+    "[aria-label*=\"voice\"]",
+    "[class*=\"microphone\"]"
+  ]
+}
