@@ -268,14 +268,21 @@ Copie e cole no sistema que quer configurar.
 ```
 📂 Metodologia-Scrape
 
-Status: Fase 2 - Sistema de Aliases
-Último commit: feat: PROMPT_MASTER_V3 integrado
-Próximo: Criar ROADMAP.md + refatorar AGENTS.md
+Status: Fase 3 - Otimização e Instrumentação
+Último commit: feat: v2.1 otimizado com PerformanceTracker
+Próximo: Firecrawl integration + Exa Search
+
+Performance (21/01/2026):
+• Tempo total: 11.3s (antes: 13.0s)
+• Gargalo identificado: navigation (57%)
+• Scroll delay: 1000ms (antes: 2500ms)
+• React hydrate: 2s (antes: 5s)
 
 Estrutura:
-- packages/mcp-grok-scraper/ (MCP funcional)
-- captures/ (25 conversas capturadas)
-- PROMPT_MASTER_V3.md (este arquivo)
+- packages/mcp-grok-scraper/ (MCP funcional v2.1)
+- packages/mcp-grok-scraper/tests/test-optimized.ts
+- captures/ (conversas capturadas)
+- ROADMAP.md (status das fases)
 ```
 
 ---
