@@ -21,8 +21,9 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import * as z from 'zod';
 
 // ============================================
@@ -424,70 +425,61 @@ async function grokContext({
 // 🔌 SERVIDOR MCP
 // ============================================
 
-const server = new McpServer({
+const server = new Server({
   name: 'mcp-grok-scraper-full',
   version: '2.0.0'
 });
 
+// Primeiro declarar capabilities
+server.registerCapabilities({
+  tools: {
+    listChanged: true
+  }
+});
+
+// Schema for tools/call
+const ToolsCallSchema = z.object({
+  method: z.literal('tools/call'),
+  params: z.object({
+    name: z.string(),
+    arguments: z.any()
+  })
+});
+
 // Tool: grok_scrape
-server.registerTool(
-  'grok_scrape',
-  {
-    title: 'Capturar Conversa do Grok (Puppeteer Stealth)',
-    description: 'Captura uma conversa do Grok Share com bypass Cloudflare completo',
-    inputSchema: {
-      url: z.string().describe('URL do Grok Share'),
-      outputDir: z.string().optional().describe('Diretório de saída'),
-      saveHtml: z.boolean().optional().describe('Salvar HTML completo'),
-      saveScreenshot: z.boolean().optional().describe('Salvar screenshot'),
-      headless: z.boolean().optional().describe('Modo headless (padrão: true)')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      messageCount: z.number(),
-      title: z.string(),
-      uuid: z.string(),
-      files: z.array(z.string()),
-      content: z.string().optional()
+server.setRequestHandler(
+  ToolsCallSchema,
+  async (request) => {
+    const { name, arguments: args } = request.params;
+    if (name === 'grok_scrape') {
+      const result = await grokScrapePuppeteer(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      };
+    } else if (name === 'grok_read') {
+      const result = await grokRead(args);
+      return {
+        content: [{ type: 'text', text: result.success ? result.content : result.error }]
+      };
+    } else if (name === 'grok_list') {
+      const result = await grokList(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      };
+    } else if (name === 'grok_context') {
+      const result = await grokContext(args);
+      return {
+        content: [{ type: 'text', text: result.context }]
+      };
     }
-  },
-  async ({ url, outputDir, saveHtml, saveScreenshot, headless }) => {
-    const result = await grokScrapePuppeteer({ url, outputDir, saveHtml, saveScreenshot, headless });
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-      isError: !result.success
-    };
+    throw new Error(`Unknown tool: ${name}`);
   }
 );
 
-// Tool: grok_read
-server.registerTool(
-  'grok_read',
-  {
-    title: 'Ler Captura',
-    description: 'Lê uma captura existente e retorna o conteúdo',
-    inputSchema: {
-      uuid: z.string().describe('UUID da captura'),
-      outputDir: z.string().optional().describe('Diretório'),
-      format: z.enum(['markdown', 'json', 'text']).optional().describe('Formato')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      content: z.string().optional(),
-      metadata: z.any().optional()
-    }
-  },
-  async ({ uuid, outputDir, format }) => {
-    const result = await grokRead({ uuid, outputDir, format });
-    return {
-      content: [{ type: 'text', text: result.success ? result.content : result.error }],
-      isError: !result.success
-    };
-  }
-);
+// Tools grok_read, grok_list, grok_context handled above
 
 // Tool: grok_list
-server.registerTool(
+server.setRequestHandler(
   'grok_list',
   {
     title: 'Listar Capturas',
@@ -509,7 +501,7 @@ server.registerTool(
 );
 
 // Tool: grok_context
-server.registerTool(
+server.setRequestHandler(
   'grok_context',
   {
     title: 'Obter Contexto para AI',

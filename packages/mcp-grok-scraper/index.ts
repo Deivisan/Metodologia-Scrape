@@ -13,8 +13,9 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import * as z from 'zod';
 import { https } from 'follow-redirects';
 
@@ -234,120 +235,62 @@ async function grokContext({
 // SERVIDOR MCP (usando @modelcontextprotocol/sdk)
 // ============================================
 
-const server = new McpServer({
+const server = new Server({
   name: 'mcp-grok-scraper',
   version: '1.1.0'
 });
 
+// Primeiro declarar capabilities
+server.registerCapabilities({
+  tools: {
+    listChanged: true
+  }
+});
+
+// Schema for tools/call
+const ToolsCallSchema = z.object({
+  method: z.literal('tools/call'),
+  params: z.object({
+    name: z.string(),
+    arguments: z.any()
+  })
+});
+
 // Tool: grok_scrape
-server.registerTool(
-  'grok_scrape',
-  {
-    title: 'Capturar Conversa do Grok',
-    description: 'Captura uma conversa do Grok Share e salva em arquivos',
-    inputSchema: {
-      url: z.string().describe('URL do Grok Share'),
-      outputDir: z.string().optional().describe('Diretório de saída'),
-      saveHtml: z.boolean().optional().describe('Salvar HTML completo'),
-      saveScreenshot: z.boolean().optional().describe('Salvar screenshot')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      messageCount: z.number(),
-      title: z.string(),
-      uuid: z.string(),
-      files: z.array(z.string()),
-      content: z.string().optional()
+server.setRequestHandler(
+  ToolsCallSchema,
+  async (request) => {
+    const { name, arguments: args } = request.params;
+    if (name === 'grok_scrape') {
+      const result = await grokScrape(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }]
+      };
+    } else if (name === 'grok_read') {
+      const result = await grokRead(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }]
+      };
+    } else if (name === 'grok_list') {
+      const result = await grokList(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }]
+      };
+    } else if (name === 'grok_context') {
+      const result = await grokContext(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }]
+      };
     }
-  },
-  async ({ url, outputDir, saveHtml, saveScreenshot }) => {
-    const result = await grokScrape({ url, outputDir, saveHtml, saveScreenshot });
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      structuredContent: result
-    };
+    throw new Error(`Unknown tool: ${name}`);
   }
 );
 
-// Tool: grok_read
-server.registerTool(
-  'grok_read',
-  {
-    title: 'Ler Captura',
-    description: 'Lê uma captura existente e retorna o conteúdo',
-    inputSchema: {
-      uuid: z.string().describe('UUID da captura'),
-      outputDir: z.string().optional().describe('Diretório'),
-      format: z.enum(['markdown', 'json', 'text']).optional().describe('Formato')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      content: z.string().optional(),
-      metadata: z.any().optional()
-    }
-  },
-  async ({ uuid, outputDir, format }) => {
-    const result = await grokRead({ uuid, outputDir, format });
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      structuredContent: result
-    };
-  }
-);
+// Tool: grok_read (continua no handler acima)
 
-// Tool: grok_list
-server.registerTool(
-  'grok_list',
-  {
-    title: 'Listar Capturas',
-    description: 'Lista todas as capturas disponíveis',
-    inputSchema: {
-      outputDir: z.string().optional().describe('Diretório')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      captures: z.array(z.object({
-        uuid: z.string(),
-        url: z.string(),
-        title: z.string(),
-        messageCount: z.number(),
-        capturedAt: z.string()
-      }))
-    }
-  },
-  async ({ outputDir }) => {
-    const result = await grokList({ outputDir });
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      structuredContent: result
-    };
-  }
-);
+// Tool: grok_list (continua no handler acima)
 
-// Tool: grok_context
-server.registerTool(
-  'grok_context',
-  {
-    title: 'Obter Contexto',
-    description: 'Retorna contexto formatado para agentes AI',
-    inputSchema: {
-      uuid: z.string().optional().describe('UUID específico'),
-      outputDir: z.string().optional().describe('Diretório')
-    },
-    outputSchema: {
-      success: z.boolean(),
-      context: z.string(),
-      hasConversation: z.boolean()
-    }
-  },
-  async ({ uuid, outputDir }) => {
-    const result = await grokContext({ uuid, outputDir });
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      structuredContent: result
-    };
-  }
-);
+// Tool: grok_context (continua no handler acima)
 
 // Iniciar servidor
 const transport = new StdioServerTransport();
