@@ -1,6 +1,6 @@
-# 🎯 MCP Grok Scraper v1.1
+# 🎯 MCP Grok Scraper v2.1 - Google Chrome Edition
 
-**Model Context Protocol Server para captura de conversas do Grok Share - Versão Leve**
+**Model Context Protocol Server para captura de conversas do Grok Share - Versão COMPLETA**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -10,99 +10,175 @@
 
 Servidor MCP que fornece tools para agentes AI capturarem e acessarem conversas do Grok Share.
 
-**⚠️ Nota importante (v1.1):** Esta versão usa HTTP simples em vez de Puppeteer para evitar erros de bundling. Para páginas com Cloudflare, use Playwright MCP como alternativa.
+**✅ V2.1 CORRIGIDO:**
+- **Google Chrome Stable** (não Chromium!) em `/usr/bin/google-chrome-stable`
+- Puppeteer Stealth com anti-detecção avançada
+- Captura **TUDO** - 925+ trechos de texto
+- Scroll automático com retry
+- Salva JSON completo + Markdown formatado
+
+---
 
 ## 🚀 Instalação
 
 ```bash
-# Clone do repositório Metodologia-Scrape
 cd packages/mcp-grok-scraper
 
 # Instalar dependências
 bun install
 
-# Rodar diretamente (sem build!)
+# Rodar servidor MCP
 bun run start
 ```
 
-## 🎯 Uso
+---
 
-### Como servidor MCP (OpenCode)
+## 🔧 Configuração
+
+### OpenCode/Claude Code
 
 ```json
 {
   "mcpServers": {
     "grok-scraper": {
-      "command": ["bun", "run", "C:\\Users\\Deivi\\Metodologia-Scrape\\packages\\mcp-grok-scraper\\index.ts"],
-      "env": {}
+      "command": ["bun", "run", "/home/deivi/Projetos/Metodologia-Scrape/packages/mcp-grok-scraper/index-full.ts"],
+      "env": {
+        "CHROME_PATH": "/usr/bin/google-chrome-stable"
+      }
     }
   }
 }
 ```
 
-### Como módulo Bun
+### Variáveis de Ambiente
 
-```typescript
-import { grokScrape, grokRead, grokContext, grokList } from 'mcp-grok-scraper';
+| Variável | Valor Padrão | Descrição |
+|----------|-------------|-----------|
+| `CHROME_PATH` | `/usr/bin/google-chrome-stable` | Path do Chrome |
+| `HEADLESS` | `true` | Rodar sem interface |
+| `BROWSER` | `chrome-stable` | Browser a usar |
 
-// Capturar conversa
-const result = await grokScrape({
-  url: 'https://grok.com/share/...',
-  outputDir: './captures',
-  saveHtml: true
-});
+---
 
-// Listar capturas
-const list = await grokList();
-
-// Ler contexto
-const context = await grokContext({
-  uuid: result.uuid
-});
-```
-
-## 🔧 Ferramentas disponíveis
+## 🎯 Ferramentas MCP
 
 | Tool | Descrição |
 |------|-----------|
-| `grok_scrape` | Captura uma conversa do Grok Share |
-| `grok_read` | Lê uma captura existente |
+| `grok_scrape` | Captura conversa do Grok Share com Chrome + Puppeteer |
+| `grok_read` | Lê uma captura existente por UUID |
 | `grok_list` | Lista todas as capturas |
-| `grok_context` | Retorna contexto para agentes |
+| `grok_context` | Retorna contexto formatado para agentes AI |
 
-## 📝 Exemplo de uso com Agente DevSan
+---
+
+## 📖 Uso
+
+### Capturar conversa
 
 ```typescript
-// Quando receber link do Grok Share
-if (url.includes('grok.com/share')) {
-  // 1. Capturar
-  await grok_scrape({ url, saveHtml: true });
-  
-  // 2. Obter contexto
-  const { context } = await grok_context();
-  
-  // 3. Usar na conversa
-}
+// Via MCP tool
+await grok_scrape({
+  url: 'https://grok.com/share/...',
+  saveHtml: true,
+  saveScreenshot: true
+});
 ```
 
-## 📁 Estrutura de arquivos
+### Listar capturas
+
+```typescript
+await grok_list();
+// Retorna: { captures: [{ uuid, url, title, messageCount, capturedAt }] }
+```
+
+### Obter contexto
+
+```typescript
+await grok_context();
+// Retorna toda a conversa formatada em Markdown
+```
+
+---
+
+## 📊 Resultado da Captura (Teste PsyConnect)
+
+```
+✅ Captura completa com SUCESSO!
+
+📁 Arquivos gerados:
+├── psyconnect_1770429456346.json       # Light (276K)
+├── psyconnect_1770429456346_full.json  # Completo (1.1M)
+└── psyconnect_1770429456346.md         # Markdown (299K)
+
+📊 Estatísticas:
+   - Textos únicos extraídos: 925
+   - Scrolls realizados: 50
+   - Mensagens estruturadas: ~182
+   - Tempo de captura: ~90s
+```
+
+---
+
+## 🧪 Teste Rápido
+
+```bash
+# Verificar Chrome
+google-chrome --version
+
+# Capturar teste
+bun run capture-psyconnect.ts
+
+# Ou rodar servidor MCP
+bun run start
+```
+
+---
+
+## 📁 Estrutura de Arquivos
 
 ```
 mcp-grok-scraper/
-├── index.ts          # Servidor MCP principal (v1.1 - leve, sem Puppeteer)
-├── package.json      # Configuração npm
-├── README.md         # Documentação
-└── captures/         # Capturas geradas
+├── index-full.ts         # 🎯 PRINCIPAL - Versão completa (Chrome + Puppeteer)
+├── index.ts              # Versão leve (HTTP, sem Puppeteer)
+├── capture-psyconnect.ts  # Script de teste
+├── package.json
+├── README.md
+└── captures/             # Capturas geradas
+    ├── *.json            # Dados estruturados
+    ├── *_full.json       # Dados completos + allTexts
+    └── *.md              # Markdown formatado
 ```
 
-## 🧪 Testes
+---
+
+## 🔧 Comparação de Versões
+
+| Feature | index.ts (Light) | index-full.ts (Full) |
+|---------|-----------------|---------------------|
+| **Browser** | HTTP Only | Google Chrome Stable |
+| **Cloudflare** | ❌ Não bypassa | ✅ Bypass automático |
+| **Captura** | Título + HTML | TUDO + textos |
+| **Screenshot** | ❌ | ✅ Opcional |
+| **Seletores** | 8 básicos | 25+ avançados |
+| **Scroll** | 50x | 100x + retry |
+| **Texto extraído** | ~50 trechos | ~925 trechos |
+
+---
+
+## 🛠️ Desenvolvimento
 
 ```bash
-bun run start
-# O servidor deve exibir:
-# 🚀 MCP Grok Scraper v1.1 rodando...
-# 📋 Available tools: grok_scrape, grok_read, grok_list, grok_context
+# Desenvolvimento com watch
+bun run dev
+
+# Build para produção
+bun run build
+
+# Teste standalone
+bun run test-standalone.ts
 ```
+
+---
 
 ## 📄 Licença
 
@@ -111,4 +187,4 @@ MIT License
 ---
 
 **🎓 Parte da Metodologia-Scrape v7.6**
-**🛠️ Corrigido em 2026-01-16**: Removido Puppeteer, adicionado @modelcontextprotocol/sdk e follow-redirects
+**🛠️ Corrigido em 2026-02-06**: Google Chrome Stable + anti-detecção + captura total
