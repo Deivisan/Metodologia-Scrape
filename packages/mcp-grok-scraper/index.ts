@@ -31,6 +31,18 @@ async function firecrawlScrape({
   url: string;
   outputDir?: string;
 }) {
+  // Verificar API key
+  if (!CONFIG.firecrawlApiKey) {
+    return {
+      success: false,
+      messageCount: 0,
+      title: '',
+      uuid: `fc_${Date.now()}`,
+      files: [],
+      content: `Erro: FIRECRAWL_API_KEY não definida. Configure a variável de ambiente.`
+    };
+  }
+
   console.log(`🔥 MCP: Firecrawl scraping ${url}`);
 
   const uuid = `fc_${Date.now()}`;
@@ -102,12 +114,14 @@ async function firecrawlScrape({
 }
 
 // Configuração
+// NOTA: Defina FIRECRAWL_API_KEY como variável de ambiente
+// A API key não está hardcoded por segurança (repo público)
 const CONFIG = {
   defaultOutputDir: join(dirname(fileURLToPath(import.meta.url)), 'captures'),
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   requestTimeout: 30000,
-  firecrawlApiKey: process.env.FIRECRAWL_API_KEY || '[REDACTED_API_KEY]',
-  useFirecrawlFallback: true
+  firecrawlApiKey: process.env.FIRECRAWL_API_KEY || '',
+  useFirecrawlFallback: !!process.env.FIRECRAWL_API_KEY
 };
 
 // ============================================
