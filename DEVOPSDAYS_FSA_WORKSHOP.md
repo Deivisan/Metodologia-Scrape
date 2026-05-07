@@ -47,13 +47,31 @@ echo "devopsdays ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/devopsdays
 sudo usermod -aG docker devopsdays
 ```
 
-### 2. Atualização dos Índices
+### 0. Atualização do Sistema e Limpeza de Cache
 
-Garante que o gerenciador de pacotes baixe as versões mais recentes das ferramentas.
+Antes de instalar qualquer coisa, é **essencial** atualizar o sistema e limpar caches para liberar espaço em disco e garantir que você tenha as versões mais recentes de tudo.
 
 ```bash
-sudo apt update && sudo apt upgrade -y
+# 1. Atualizar lista de pacotes
+sudo apt update
+
+# 2. Atualizar todos os pacotes instalados para suas últimas versões
+sudo apt upgrade -y
+
+# 3. Remover pacotes obsoletos e desnecessários
+sudo apt autoremove -y
+
+# 4. Limpar cache do apt (pacotes .deb baixados que ficam em cache)
+sudo apt clean
+
+# 5. Remover resíduos de pacotes antigos
+sudo apt autoclean
+
+# 6. Verificar espaço em disco após limpeza
+df -h /
 ```
+
+> 💡 **Dica:** Execute esses comandos periodicamente para manter o sistema leve e atualizado.
 
 ### 3. Instalação do Nginx
 
@@ -181,9 +199,14 @@ fi
 # 3. Adicionar usuário ao grupo docker
 usermod -aG docker devopsdays
 
-# 4. Atualizações e Nginx globais
-echo "Instalando dependências e Nginx..."
+# 4. Atualizações, limpeza e Nginx globais
+echo "Atualizando sistema e limpando cache..."
 apt-get update && apt-get upgrade -y
+apt-get autoremove -y
+apt-get clean
+apt-get autoclean
+
+echo "Instalando dependências e Nginx..."
 apt-get install -y nginx curl unzip git ca-certificates
 
 # 5. Instalar Docker
@@ -295,10 +318,14 @@ curl http://localhost
 | 1 | `lsb_release -a` | Verificar versão do SO |
 | 1 | `free -m` | Verificar RAM disponível |
 | 1 | `df -h /` | Verificar espaço em disco |
+| 2 | `sudo apt update` | Atualizar lista de pacotes |
+| 2 | `sudo apt upgrade -y` | Atualizar todos os pacotes |
+| 2 | `sudo apt autoremove -y` | Remover pacotes obsoletos |
+| 2 | `sudo apt clean` | Limpar cache do apt |
+| 2 | `sudo apt autoclean` | Remover resíduos antigos |
 | 2 | `useradd -m devopsdays` | Criar usuário isolado |
-| 2 | `echo "devopsdays:cetensufrb" \| chpasswd` | Definir senha |
+| 2 | `echo "devopsdays:cetensufrb" | chpasswd` | Definir senha |
 | 2 | `echo "devopsdays ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/devopsdays` | sudo sem senha |
-| 2 | `sudo apt update && sudo apt upgrade -y` | Atualizar índices |
 | 2 | `sudo apt install nginx -y` | Instalar Nginx |
 | 2 | `./aws/install -i ~/.local/aws-cli -b ~/.local/bin` | AWS CLI (usuário) |
 | 2 | `sudo apt install docker-ce...` | Instalar Docker (global) |
