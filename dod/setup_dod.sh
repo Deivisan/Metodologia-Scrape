@@ -52,17 +52,16 @@ if [ -f /etc/os-release ]; then
     info "Distro: $DISTRO $DISTRO_VERSION"
 fi
 
-# ── 2. Update + Prereqs ───────────────────────────────────────────────────
-header "Atualizando Sistema"
+# ── 2. Prereqs (sem update, idempotente) ──────────────────────────────────
+header "Instalando Dependências"
 
-apt-get update -qq
-DEPS="curl wget unzip git ca-certificates"
+DEPS="curl wget unzip git ca-certificates gnupg lsb-release"
 for pkg in $DEPS; do
-    if ! command -v "$pkg" &>/dev/null; then
-        apt-get install -y -qq $pkg > /dev/null
+    if ! command -v "$pkg" &>/dev/null 2>/dev/null; then
+        apt-get install -y -qq $pkg > /dev/null 2>&1 || true
     fi
 done
-ok "Sistema atualizado e dependências instaladas"
+ok "Dependências instaladas"
 
 # ── 3. Usuário devopsdays ────────────────────────────────────────────────
 header "Configurando Usuário"
@@ -88,8 +87,8 @@ if ! command -v docker &>/dev/null; then
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
-    apt-get update -qq
-    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null
+    apt-get update -qq 2>/dev/null
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null 2>&1
     ok "Docker instalado"
 else
     ok "Docker já instalado: $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',')"
