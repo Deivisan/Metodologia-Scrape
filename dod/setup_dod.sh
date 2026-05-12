@@ -1,13 +1,9 @@
 #!/bin/bash
 #=============================================================================
 # setup_dod.sh — DevOpsDays FSA Setup Automático
-# Instala no HOST (não em container): nginx, aws cli, repo
-# Containeriza apenas: localstack
-#
-# Uso: sudo ./setup_dod.sh
-#      curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash
+# YOLO MODE: idempotente, sem update/upgrade, trata tudo
 #=============================================================================
-set -eo pipefail
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -18,9 +14,7 @@ NC='\033[0m'
 
 DEVOPS_USER="devopsdays"
 DEVOPS_PASS="cetensufrb"
-REPO_URL="https://github.com/Jonta-Sancar/dod-fsa.git"
-REPO_DIR="dod-fsa"
-MIN_DISK_MB=2048
+MIN_DISK_MB=1500
 
 info()  { echo -e "${CYAN}[setup]${NC} $*"; }
 ok()    { echo -e "${GREEN}✓${NC} $*"; }
@@ -28,59 +22,35 @@ warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
 fail()  { echo -e "${RED}✗${NC} $*"; }
 header(){ echo -e "${BLUE}━━━ $* ━━━${NC}"; }
 
-# ── 1. Verificações ─────────────────────────────────────────────────────────
-header "Verificações do Sistema"
-
 if [ "$EUID" -ne 0 ]; then
-    fail "Execute como root (sudo)"
+    fail "Execute como root"
     exit 1
 fi
-ok "Executando como root"
 
 FREE_SPACE=$(df -m / | awk 'NR==2 {print $4}')
-if [ "$FREE_SPACE" -lt "$MIN_DISK_MB" ]; then
-    warn "Espaço livre: ${FREE_SPACE}MB (mínimo: ${MIN_DISK_MB}MB)"
-else
-    ok "Espaço em disco: ${FREE_SPACE}MB"
-fi
+[ "$FREE_SPACE" -lt "$MIN_DISK_MB" ] && warn "Espaço: ${FREE_SPACE}MB" || ok "Espaço: ${FREE_SPACE}MB"
 
-DISTRO=""
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    DISTRO="${ID:-unknown}"
-    DISTRO_VERSION="${VERSION_ID:-?}"
-    info "Distro: $DISTRO $DISTRO_VERSION"
-fi
-
-# ── 2. Prereqs (sem update, idempotente) ──────────────────────────────────
-header "Instalando Dependências"
-
-DEPS="curl wget unzip git ca-certificates gnupg lsb-release"
-for pkg in $DEPS; do
-    if ! command -v "$pkg" &>/dev/null 2>/dev/null; then
-        apt-get install -y -qq $pkg > /dev/null 2>&1 || true
-    fi
+# ── 1. Prereqs (sem update, idempotente) ───────────────────────────────────
+header "Dependências"
+for pkg in curl wget unzip git ca-certificates gnupg lsb-release; do
+    command -v "$pkg" &>/dev/null || apt-get install -y -qq "$pkg" > /dev/null 2>&1
 done
-ok "Dependências instaladas"
+ok "Prereqs ok"
 
-# ── 3. Usuário devopsdays ────────────────────────────────────────────────
-header "Configurando Usuário"
-
+# ── 2. devopsdays user ────────────────────────────────────────────────────
+header "Usuário devopsdays"
 if ! id "$DEVOPS_USER" &>/dev/null; then
     useradd -m -s /bin/bash "$DEVOPS_USER"
     echo "${DEVOPS_USER}:${DEVOPS_PASS}" | chpasswd
-    ok "Usuário $DEVOPS_USER criado"
+    ok "Criado"
 else
-    ok "Usuário $DEVOPS_USER já existe"
+    ok "Já existe"
 fi
-
 echo "$DEVOPS_USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$DEVOPS_USER
 chmod 440 /etc/sudoers.d/$DEVOPS_USER
-ok "Sudo sem senha configurado"
 
-# ── 4. Docker ────────────────────────────────────────────────────────────
-header "Instalando Docker"
-
+# ── 3. Docker (sem update) ─────────────────────────────────────────────────
+header "Docker"
 if ! command -v docker &>/dev/null; then
     CODENAME="${VERSION_CODENAME:-jammy}"
     install -m 0755 -d /etc/apt/keyrings
@@ -89,30 +59,29 @@ if ! command -v docker &>/dev/null; then
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
     apt-get update -qq 2>/dev/null
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null 2>&1
-    ok "Docker instalado"
+    ok "Instalado"
 else
-    ok "Docker já instalado: $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',')"
+    ok "Já instalado: $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',')"
 fi
 
-if ! systemctl is-active --quiet docker; then
-    systemctl start docker
-fi
-
-usermod -aG docker "$DEVOPS_USER"
+systemctl start docker 2>/dev/null || true
+usermod -aG docker "$DEVOPS_USER" 2>/dev/null || true
 chmod 666 /var/run/docker.sock 2>/dev/null || true
-ok "Docker configurado"
 
-# ── 5. Nginx (HOST) ───────────────────────────────────────────────────────
-header "Instalando Nginx (host)"
+# ── 4. Nginx ────────────────────────────────────────────────────────────────
+header "Nginx"
+if ! command -v nginx &>/dev/null; then
+    apt-get install -y -qq nginx > /dev/null 2>&1
+    ok "Instalado"
+else
+    ok "Já instalado"
+fi
+systemctl enable nginx 2>/dev/null || true
+systemctl start nginx 2>/dev/null || true
+ok "Nginx ativo"
 
-apt-get install -y -qq nginx > /dev/null
-systemctl enable nginx
-systemctl start nginx
-ok "Nginx rodando na porta 80"
-
-# ── 6. LocalStack (CONTAINER) ───────────────────────────────────────────
-header "Subindo LocalStack (container)"
-
+# ── 5. LocalStack (container) ───────────────────────────────────────────────
+header "LocalStack"
 su - "$DEVOPS_USER" -c '
     set -e
     REPO_HOME="/home/devopsdays"
@@ -123,59 +92,33 @@ su - "$DEVOPS_USER" -c '
     sed -i "s|image: localstack/localstack$|image: localstack/localstack:3.5.0|" docker-compose.yml 2>/dev/null || true
     docker compose up -d localstack
 '
-ok "LocalStack container rodando"
+ok "LocalStack container"
 
-# ── 7. AWS CLI v2 (HOST) ─────────────────────────────────────────────────
-header "Instalando AWS CLI v2 (host)"
-
+# ── 6. AWS CLI (host) ────────────────────────────────────────────────────
+header "AWS CLI"
 su - "$DEVOPS_USER" -c '
     AWS_BIN="$HOME/.local/bin/aws"
-    if [ -x "$AWS_BIN" ]; then
-        echo "AWS CLI já instalado"
-        exit 0
-    fi
+    [ -x "$AWS_BIN" ] && exit 0
     mkdir -p "$HOME/.local/bin"
     curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
     unzip -q "/tmp/awscliv2.zip" -d "/tmp/"
     /tmp/aws/install -i "$HOME/.local/aws-cli" -b "$HOME/.local/bin" > /dev/null
     rm -rf /tmp/awscliv2.zip /tmp/aws/
-    grep -q "local/bin" "$HOME/.bashrc" 2>/dev/null || echo "export PATH=\$PATH:\$HOME/.local/bin" >> "$HOME/.bashrc"
-    echo "AWS CLI instalado"
 '
-ok "AWS CLI v2 instalado em ~/.local/bin/aws"
+ok "AWS CLI ok"
 
-# ── 8. Health Check LocalStack ────────────────────────────────────────────
-info "Aguardando LocalStack (timeout: 120s)..."
-TIMEOUT=120
-ELAPSED=0
-while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
-    HEALTH=$(curl -s --max-time 3 http://localhost:4566/_localstack/health 2>/dev/null || true)
-    if echo "$HEALTH" | grep -q '"features"'; then
-        echo ""
-        ok "LocalStack saudável!"
-        break
-    fi
+# ── 7. Health check ───────────────────────────────────────────────────────
+info "Aguardando LocalStack..."
+for i in $(seq 1 40); do
+    wget -q -O- http://localhost:4566/_localstack/health > /dev/null 2>&1 && { echo ""; ok "LocalStack saudável"; break; }
     printf "."
     sleep 3
-    ELAPSED=$((ELAPSED + 3))
 done
-[ "$ELAPSED" -ge "$TIMEOUT" ] && warn "Timeout - LocalStack pode estar subindo"
 
-# ── 9. Resumo ────────────────────────────────────────────────────────────
 echo ""
 header "Setup Concluído"
-echo ""
-echo -e "${GREEN}Credenciais:${NC}"
-echo "  SSH root:     8u@3tArb!"
-echo "  devopsdays:   $DEVOPS_PASS (sudo sem senha)"
-echo ""
-echo -e "${GREEN}Serviços no HOST:${NC}"
-echo "  Nginx:        http://localhost:80"
-echo "  AWS CLI:      ~/.local/bin/aws"
-echo "  Repo:         /home/$DEVOPS_USER/$REPO_DIR"
-echo ""
-echo -e "${GREEN}Serviços em CONTAINER:${NC}"
-echo "  LocalStack:   http://localhost:4566"
-echo ""
-info "Para verificar: ./verify_dod.sh"
+echo "  Nginx:       http://localhost:80"
+echo "  LocalStack:  http://localhost:4566"
+echo "  AWS CLI:     /home/$DEVOPS_USER/.local/bin/aws"
+echo "  devopsdays:  $DEVOPS_PASS"
 echo ""
