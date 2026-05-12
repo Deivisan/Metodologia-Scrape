@@ -1,14 +1,14 @@
 #!/bin/bash
 #=============================================================================
 # setup_dod.sh — DevOpsDays FSA Setup Automático
-# Instala: nginx, docker, docker compose, aws cli v2, clona repo, sobe stack
+# Instala no HOST (não em container): nginx, aws cli, repo
+# Containeriza apenas: localstack
 #
 # Uso: sudo ./setup_dod.sh
 #      curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash
 #=============================================================================
 set -eo pipefail
 
-# ── Cores ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -16,147 +16,123 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# ── Configurações ──────────────────────────────────────────────────────────
 DEVOPS_USER="devopsdays"
 DEVOPS_PASS="cetensufrb"
 REPO_URL="https://github.com/Jonta-Sancar/dod-fsa.git"
 REPO_DIR="dod-fsa"
-AWS_CLI_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
 MIN_DISK_MB=2048
-LOCALSTACK_VERSION="3.5.0"
 
-# ── Helpers ────────────────────────────────────────────────────────────────
 info()  { echo -e "${CYAN}[setup]${NC} $*"; }
 ok()    { echo -e "${GREEN}✓${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
 fail()  { echo -e "${RED}✗${NC} $*"; }
 header(){ echo -e "${BLUE}━━━ $* ━━━${NC}"; }
 
-cleanup() {
-    local ec=$?
-    [ $ec -ne 0 ] && warn "Script interrompido com erro (código $ec)"
-    exit $ec
-}
-trap cleanup EXIT
-
-# ── 1. Verificações Iniciais ──────────────────────────────────────────────
+# ── 1. Verificações ─────────────────────────────────────────────────────────
 header "Verificações do Sistema"
 
-# root?
 if [ "$EUID" -ne 0 ]; then
-    fail "Este script deve ser executado como root (sudo)"
+    fail "Execute como root (sudo)"
     exit 1
 fi
 ok "Executando como root"
 
-# espaço em disco
 FREE_SPACE=$(df -m / | awk 'NR==2 {print $4}')
 if [ "$FREE_SPACE" -lt "$MIN_DISK_MB" ]; then
-    warn "Pouco espaço livre: ${FREE_SPACE}MB (recomendado: ${MIN_DISK_MB}MB)"
+    warn "Espaço livre: ${FREE_SPACE}MB (mínimo: ${MIN_DISK_MB}MB)"
 else
     ok "Espaço em disco: ${FREE_SPACE}MB"
 fi
 
-# distro detection
 DISTRO=""
-DISTRO_FAMILY=""
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     DISTRO="${ID:-unknown}"
     DISTRO_VERSION="${VERSION_ID:-?}"
-    # debian family?
-    case "$DISTRO" in
-        debian|ubuntu|linuxmint|pop|elementary|zorin) DISTRO_FAMILY="debian" ;;
-        rhel|centos|fedora|rocky|almalinux)           DISTRO_FAMILY="redhat" ;;
-        arch|manjaro|endeavouros|artix)               DISTRO_FAMILY="arch" ;;
-        suse|opensuse*)                                DISTRO_FAMILY="suse" ;;
-        *)                                             DISTRO_FAMILY="other" ;;
-    esac
-    info "Distro: $DISTRO $DISTRO_VERSION (família: $DISTRO_FAMILY)"
+    info "Distro: $DISTRO $DISTRO_VERSION"
 fi
 
-# apt-get disponível? (Ubuntu/Debian esperado)
-if [ "$DISTRO_FAMILY" != "debian" ] && ! command -v apt-get &>/dev/null; then
-    fail "Este script foi feito para Ubuntu/Debian. Detectado: $DISTRO"
-    fail "Instale manualmente: nginx, docker, docker-compose, git, curl, unzip"
-    exit 1
-fi
-
-# ── 2. Update + Limpeza ───────────────────────────────────────────────────
-header "Atualizando Sistema e Limpando Cache"
+# ── 2. Update + Prereqs ───────────────────────────────────────────────────
+header "Atualizando Sistema"
 
 apt-get update -qq
-apt-get upgrade -y -qq 2>/dev/null || true  # upgrade pode falhar em alguns casos
-apt-get autoremove -y -qq
-apt-get clean -qq
-apt-get autoclean -qq
-ok "Sistema atualizado e caches limpos"
+DEPS="curl wget unzip git ca-certificates"
+for pkg in $DEPS; do
+    if ! command -v "$pkg" &>/dev/null; then
+        apt-get install -y -qq $pkg > /dev/null
+    fi
+done
+ok "Sistema atualizado e dependências instaladas"
 
-# ── 3. Usuário devopsdays ─────────────────────────────────────────────────
-header "Criando Usuário Isolado"
+# ── 3. Usuário devopsdays ────────────────────────────────────────────────
+header "Configurando Usuário"
 
-if id "$DEVOPS_USER" &>/dev/null; then
-    ok "Usuário $DEVOPS_USER já existe"
-else
+if ! id "$DEVOPS_USER" &>/dev/null; then
     useradd -m -s /bin/bash "$DEVOPS_USER"
     echo "${DEVOPS_USER}:${DEVOPS_PASS}" | chpasswd
-    echo "$DEVOPS_USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$DEVOPS_USER
-    chmod 440 /etc/sudoers.d/$DEVOPS_USER
     ok "Usuário $DEVOPS_USER criado"
+else
+    ok "Usuário $DEVOPS_USER já existe"
 fi
 
-usermod -aG docker "$DEVOPS_USER" 2>/dev/null || true
-ok "Usuário adicionado ao grupo docker"
+echo "$DEVOPS_USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$DEVOPS_USER
+chmod 440 /etc/sudoers.d/$DEVOPS_USER
+ok "Sudo sem senha configurado"
 
-# ── 4. Nginx + Dependências ────────────────────────────────────────────────
-header "Instalando Nginx e Dependências"
+# ── 4. Docker ────────────────────────────────────────────────────────────
+header "Instalando Docker"
 
-apt-get install -y -qq nginx curl unzip git ca-certificates > /dev/null
-
-if systemctl is-active --quiet nginx; then
-    ok "Nginx instalado e rodando"
+if ! command -v docker &>/dev/null; then
+    CODENAME="${VERSION_CODENAME:-jammy}"
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update -qq
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null
+    ok "Docker instalado"
 else
-    systemctl start nginx
-    ok "Nginx instalado e iniciado"
-fi
-
-# ── 5. Docker ─────────────────────────────────────────────────────────────
-header "Instalando Docker e Docker Compose"
-
-if command -v docker &>/dev/null; then
-    ok "Docker já instalado: $(docker --version 2>/dev/null || true)"
-else
-    # Tenta via apt oficial (Ubuntu/Debian)
-    if [ "$DISTRO_FAMILY" = "debian" ]; then
-        CODENAME="${VERSION_CODENAME:-$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")}"
-        [ -z "$CODENAME" ] && CODENAME="jammy"  # fallback seguro
-
-        install -m 0755 -d /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-        chmod a+r /etc/apt/keyrings/docker.asc
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
-        apt-get update -qq
-        apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null
-        ok "Docker instalado via repositório oficial"
-    else
-        # Fallback: script oficial get.docker.com (funciona em qualquer distro)
-        warn "Distro não-Debian detectada. Usando script oficial do Docker..."
-        curl -fsSL https://get.docker.com | sh
-        ok "Docker instalado via script oficial"
-    fi
+    ok "Docker já instalado: $(docker --version 2>/dev/null | cut -d' ' -f3 | tr -d ',')"
 fi
 
 if ! systemctl is-active --quiet docker; then
     systemctl start docker
 fi
 
-# ── 6. AWS CLI v2 ─────────────────────────────────────────────────────────
-header "Instalando AWS CLI v2"
+usermod -aG docker "$DEVOPS_USER"
+chmod 666 /var/run/docker.sock 2>/dev/null || true
+ok "Docker configurado"
+
+# ── 5. Nginx (HOST) ───────────────────────────────────────────────────────
+header "Instalando Nginx (host)"
+
+apt-get install -y -qq nginx > /dev/null
+systemctl enable nginx
+systemctl start nginx
+ok "Nginx rodando na porta 80"
+
+# ── 6. LocalStack (CONTAINER) ───────────────────────────────────────────
+header "Subindo LocalStack (container)"
+
+su - "$DEVOPS_USER" -c '
+    set -e
+    if [ ! -d "'"$REPO_DIR"'" ]; then
+        git clone -q "'"$REPO_URL"'" "'"$REPO_DIR"'" 2>/dev/null
+    fi
+    cd "'"$REPO_DIR"'"
+    sed -i "s|image: localstack/localstack$|image: localstack/localstack:3.5.0|" docker-compose.yml 2>/dev/null || true
+    # sobe só localstack
+    docker compose up -d localstack
+'
+ok "LocalStack container rodando"
+
+# ── 7. AWS CLI v2 (HOST) ─────────────────────────────────────────────────
+header "Instalando AWS CLI v2 (host)"
 
 su - "$DEVOPS_USER" -c '
     AWS_BIN="$HOME/.local/bin/aws"
     if [ -x "$AWS_BIN" ]; then
-        echo "AWS CLI já instalado: $($AWS_BIN --version 2>&1 | head -1)"
+        echo "AWS CLI já instalado"
         exit 0
     fi
     mkdir -p "$HOME/.local/bin"
@@ -164,45 +140,13 @@ su - "$DEVOPS_USER" -c '
     unzip -q "/tmp/awscliv2.zip" -d "/tmp/"
     /tmp/aws/install -i "$HOME/.local/aws-cli" -b "$HOME/.local/bin" > /dev/null
     rm -rf /tmp/awscliv2.zip /tmp/aws/
-    # add to PATH se não existir
     grep -q "local/bin" "$HOME/.bashrc" 2>/dev/null || echo "export PATH=\$PATH:\$HOME/.local/bin" >> "$HOME/.bashrc"
     echo "AWS CLI instalado"
 '
+ok "AWS CLI v2 instalado em ~/.local/bin/aws"
 
-ok "AWS CLI v2 configurado"
-
-# ── 7. Repositório dod-fsa ────────────────────────────────────────────────
-header "Clonando Repositório"
-
-su - "$DEVOPS_USER" -c '
-    set -e
-    if [ -d "'"$REPO_DIR"'" ]; then
-        echo "Repositório já existe, fazendo pull..."
-        cd "'"$REPO_DIR"'" && git pull -q
-    else
-        git clone -q "'"$REPO_URL"'" "'"$REPO_DIR"'" 2>/dev/null || {
-            echo "Falha ao clonar. Verifique se o repo existe e sua internet."
-            exit 1
-        }
-    fi
-    cd "'"$REPO_DIR"'"
-    # fix localstack version (gratuita)
-    sed -i "s|image: localstack/localstack$|image: localstack/localstack:'"$LOCALSTACK_VERSION"'|" docker-compose.yml 2>/dev/null || true
-    sed -i "s|image: localstack/localstack:latest$|image: localstack/localstack:'"$LOCALSTACK_VERSION"'|" docker-compose.yml 2>/dev/null || true
-    # fix nginx volume path
-    sed -i "s|./html:/usr/share/nginx/html:ro|./resources/html:/usr/share/nginx/html:ro|" docker-compose.yml 2>/dev/null || true
-    echo "Repositório configurado"
-'
-
-ok "Repositório clonado e configurado"
-
-# ── 8. Subir Containers ────────────────────────────────────────────────────
-header "Iniciando Containers Docker"
-
-su - "$DEVOPS_USER" -c "cd ~/$REPO_DIR && docker compose up -d"
-
-# ── Health Check (em vez de sleep fixo) ─────────────────────────────────────
-info "Aguardando LocalStack ficar saudável (timeout: 120s)..."
+# ── 8. Health Check LocalStack ────────────────────────────────────────────
+info "Aguardando LocalStack (timeout: 120s)..."
 TIMEOUT=120
 ELAPSED=0
 while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
@@ -216,41 +160,23 @@ while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
     sleep 3
     ELAPSED=$((ELAPSED + 3))
 done
+[ "$ELAPSED" -ge "$TIMEOUT" ] && warn "Timeout - LocalStack pode estar subindo"
 
-if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-    echo ""
-    warn "Timeout aguardando LocalStack. Containers podem ainda estar subindo."
-fi
-
-# ── Verificação Final ─────────────────────────────────────────────────────
-header "Verificação Final"
-
-CONTAINER_COUNT=$(su - "$DEVOPS_USER" -c 'docker ps -q' 2>/dev/null | wc -l)
-if [ "$CONTAINER_COUNT" -ge 1 ]; then
-    ok "$CONTAINER_COUNT container(s) rodando"
-    su - "$DEVOPS_USER" -c 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"' 2>/dev/null
-else
-    warn "Nenhum container rodando — execute 'docker compose up -d' manualmente"
-fi
-
-# ── Resumo ────────────────────────────────────────────────────────────────
+# ── 9. Resumo ────────────────────────────────────────────────────────────
 echo ""
 header "Setup Concluído"
 echo ""
 echo -e "${GREEN}Credenciais:${NC}"
-echo "  Usuário:  $DEVOPS_USER"
-echo "  Senha:    $DEVOPS_PASS"
-echo "  sudo:     sem senha"
+echo "  SSH root:     8u@3tArb!"
+echo "  devopsdays:   $DEVOPS_PASS (sudo sem senha)"
 echo ""
-echo -e "${GREEN}Serviços:${NC}"
-echo "  LocalStack:       http://localhost:4566"
-echo "  Nginx (container): http://localhost:8080"
-echo "  Nginx (sistema):   http://localhost"
+echo -e "${GREEN}Serviços no HOST:${NC}"
+echo "  Nginx:        http://localhost:80"
+echo "  AWS CLI:      ~/.local/bin/aws"
+echo "  Repo:         ~/$REPO_DIR"
 echo ""
-echo -e "${GREEN}Acessar:${NC}"
-echo "  su - $DEVOPS_USER"
-echo "  docker ps"
-echo "  ~/.local/bin/aws --version"
+echo -e "${GREEN}Serviços em CONTAINER:${NC}"
+echo "  LocalStack:   http://localhost:4566"
 echo ""
-info "Para verificar tudo: curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash -s -- --verify"
+info "Para verificar: ./verify_dod.sh"
 echo ""

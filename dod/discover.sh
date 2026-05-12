@@ -20,6 +20,7 @@
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MACS_JSON="${SCRIPT_DIR}/macs.json"
 MACS_FILE="${SCRIPT_DIR}/macs.txt"
 HOSTS_FILE="${SCRIPT_DIR}/hosts.txt"
 RESULTS_FILE="/tmp/dod-macs-$$.tsv"
@@ -58,32 +59,48 @@ for arg in "$@"; do
 done
 
 # ── Carregar MACs ──────────────────────────────────────────────────────────
-if [ ! -f "$MACS_FILE" ]; then
-    fail "Arquivo não encontrado: $MACS_FILE"
-    echo "Crie o arquivo com formato: MAC_ADDRESS [NOME]"
-    exit 1
-fi
-
 declare -A MAC_NAMES
 MAC_LIST=()
-while read -r mac nome _; do
-    mac=$(echo "$mac" | tr '[:upper:]' '[:lower:]' | tr '-' ':')
-    [[ -z "$mac" || "$mac" == \#* ]] && continue
-    # valida formato mac
-    if ! echo "$mac" | grep -qiE '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'; then
-        warn "MAC inválido ignorado: $mac"
-        continue
+
+if [ -f "$MACS_JSON" ]; then
+    info "Carregando de $MACS_JSON..."
+    TOTAL=$(python3 -c "import json,sys; d=json.load(open('$MACS_JSON')); print(len(d['machines']))" 2>/dev/null || echo 0)
+    if [ "$TOTAL" -gt 0 ]; then
+        python3 -c "
+import json,sys
+d=json.load(open('$MACS_JSON'))
+for m in d['machines']:
+    mac = m['mac'].lower().replace('-',':')
+    name = m['host']
+    print(f'{mac} {name}')
+" | while read -r mac nome; do
+            MAC_LIST+=("$mac")
+            MAC_NAMES["$mac"]="$nome"
+        done
+        info "Carregados $TOTAL MACs de macs.json"
     fi
-    MAC_LIST+=("$mac")
-    MAC_NAMES["$mac"]="${nome:-$mac}"
-done < "$MACS_FILE"
+fi
+
+if [ ${#MAC_LIST[@]} -eq 0 ] && [ -f "$MACS_FILE" ]; then
+    info "Fallback para $MACS_FILE..."
+    while read -r mac nome _; do
+        mac=$(echo "$mac" | tr '[:upper:]' '[:lower:]' | tr '-' ':')
+        [[ -z "$mac" || "$mac" == \#* ]] && continue
+        if ! echo "$mac" | grep -qiE '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'; then
+            warn "MAC inválido ignorado: $mac"
+            continue
+        fi
+        MAC_LIST+=("$mac")
+        MAC_NAMES["$mac"]="${nome:-$mac}"
+    done < "$MACS_FILE"
+fi
 
 TOTAL=${#MAC_LIST[@]}
 if [ "$TOTAL" -eq 0 ]; then
-    fail "Nenhum MAC válido encontrado em $MACS_FILE"
+    fail "Nenhum MAC encontrado (verifique macs.json ou macs.txt)"
     exit 1
 fi
-info "Carregados $TOTAL MACs de $MACS_FILE"
+info "Total: $TOTAL MACs"
 
 # ── Escanear rede ──────────────────────────────────────────────────────────
 scan_network() {

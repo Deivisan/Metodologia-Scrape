@@ -1,216 +1,160 @@
-# 🤖 PROMPT MASTER — ORQUESTRADOR DOD
+# 🤖 ORQUESTRADOR DOD — AGENTIC
 
-> **Função:** Orquestrador responsável por distribuir e executar os scripts DOD em 19 máquinas.
-> **Posto:** Um dos PCs da rede (qualquer um, desde que tenha acesso SSH aos demais).
-> **Missão:** Descobrir as máquinas pelos MACs, instalar a stack em todas, verificar e reportar.
+> **Posto:** PC do instrutor na mesma rede que as 19 máquinas do lab.
+> **Missão:** Receber IPs, instalar a stack completa em cada máquina via SSH, reportar status.
 
 ---
 
-## 🧭 MAPA DA PASTA `dod/`
+## 🔐 ACESSO PADRÃO (TODAS IGUAIS)
 
+| | Valor |
+|---|---|
+| SSH user | `aluno` |
+| SSH senha | `cetensufrb` |
+| Root senha | `8u@3tArb!` |
+| sudo | `aluno` tem acesso via `su` |
+
+**Fluxo de conexão SSH:**
 ```
-dod/
-│
-├── macs.txt               ← COMEÇE AQUI. Lista dos 19 MACs
-├── discover.sh            ← Escaneia rede, casa MAC → IP, gera hosts.txt
-├── hosts.txt              ← GERADO pelo discover.sh (IP NOME MAC)
-│
-├── bootstrap.sh           ← Entrypoint curl (setup/verify/teardown via --flag)
-├── setup_dod.sh           ← Instala tudo (nginx, docker, aws, repo, stack)
-├── teardown_dod.sh        ← Remove tudo
-├── verify_dod.sh          ← Verifica instalação
-│
-├── tracker.sh             ← Dashboard CLI (terminal)
-├── dashboard.py           ← Dashboard WEB (localhost:8000)
-├── deploy.sh              ← Deploy SSH paralelo (alternativa)
-│
-├── EXECUTAR.md            ← Guia passo a passo completo
-└── prompt-master-dod.md   ← ← VOCÊ ESTÁ AQUI
+ssh aluno@<IP>
+su - (senha: 8u@3tArb!)
 ```
 
 ---
 
-## 🎯 FLUXO DE EXECUÇÃO (O QUE FAZER)
+## 📋 STACK INSTALADA (POR MÁQUINA)
 
-### ⚙️ 1. PREPARAR O PC ORQUESTRADOR
+### No HOST (sistema)
+- `nginx` — servidor web na porta 80
+- `aws cli v2` — em `/home/devopsdays/.local/bin/aws`
+- `git` + `curl` + `wget` — utilitários
+- `repo dod-fsa` — clonado em `/home/devopsdays/dod-fsa/`
+
+### Em CONTAINER (Docker)
+- `dod-localstack` — LocalStack 3.5.0 na porta 4566
+
+---
+
+## 🔧 PRIMEIRA VEZ: PREPARAR O ORQUESTRADOR
 
 ```bash
-# Instalar dependências mínimas
-apt-get install -y git curl python3 arp-scan sshpass
+# Instalar ferramentas
+apt-get install -y sshpass
 
-# Clonar o repositório
+# Clonar repo (se não tiver)
 git clone https://github.com/Deivisan/Metodologia-Scrape.git
 cd Metodologia-Scrape
 ```
 
-### 📝 2. PREENCHER OS MACS
+---
 
-Edite `dod/macs.txt` com os 19 endereços MAC:
+## 🚀 INSTALAR EM UMA MÁQUINA (PROVA REAL)
 
-```txt
-# Formato: MAC_ADDRESS  NOME_OPCIONAL
-aa:bb:cc:dd:ee:01   pc-lab-01
-aa:bb:cc:dd:ee:02   pc-lab-02
-aa:bb:cc:dd:ee:03   pc-lab-03
-...
-```
-
-> 💡 **Dica:** Se você não tem os MACs, pode pular essa etapa e ir direto para o `discover.sh --scan` que ele lista todos os dispositivos na rede.
-
-### 🔍 3. DESCOBRIR OS IPs (AUTOMÁTICO)
+Sempre testar em 1 antes de批量:
 
 ```bash
-sudo ./dod/discover.sh
-```
+# 1. Verificar conexão SSH
+sshpass -p 'cetensufrb' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -l aluno <IP> 'echo OK'
 
-Isso vai:
-- Escanear a rede local (usa `arp-scan`, fallback `nmap`, fallback `ping + ip neigh`)
-- Para cada MAC do `macs.txt`, encontrar o IP atual
-- Gerar `dod/hosts.txt` automaticamente
+# 2. Habilitar SSH root (se necessário)
+sshpass -p 'cetensufrb' ssh -o StrictHostKeyChecking=no -l aluno <IP> \
+  'echo "8u@3tArb!" | su -c "sed -i s/#PermitRootLogin/prohibit-password/PermitRootLogin/ /etc/ssh/sshd_config; systemctl restart ssh" root'
 
-Resultado esperado:
-```
-━━━ CORRESPONDÊNCIA MAC → IP ━━━
-MAC                IP                 NOME                STATUS
-────────────────────────────────────────────────────────────────────
-aa:bb:cc:dd:ee:01  192.168.1.10       pc-lab-01           ✅
-aa:bb:cc:dd:ee:02  192.168.1.11       pc-lab-02           ✅
-...
-aa:bb:cc:dd:ee:19  ?                  pc-lab-19           ❌  ← desligado ou fora da rede
-```
+# 3. Instalar stack via bootstrap
+sshpass -p '8u@3tArb!' ssh -o StrictHostKeyChecking=no root@<IP> \
+  'curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | bash'
 
-> ⚠️ Se algum MAC não for encontrado, a máquina pode estar desligada ou em rede diferente. Verifique antes de prosseguir.
-
-### ✅ 4. TESTAR CONECTIVIDADE
-
-```bash
-# Testar SSH em todas as máquinas
-./dod/tracker.sh --status
-```
-
-### 🧪 5. TESTE EM 1 MÁQUINA (PROVA REAL)
-
-Sempre teste em **uma** máquina antes de disparar nas 19:
-
-```bash
-# Setup manual em uma
-ssh root@192.168.1.10 "curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash"
-
-# Verificar
-ssh root@192.168.1.10 "curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash -s -- --verify"
-```
-
-Se falhar → debugar e corrigir antes de continuar.
-Se passar → pode disparar nas 19.
-
-### 🚀 6. EXECUTAR NAS 19 MÁQUINAS
-
-**Opção A — Dashboard Web (recomendado):**
-```bash
-# Terminal 1: servidor web
-python3 ./dod/dashboard.py
-
-# Navegador: http://localhost:8000
-# Clique em ▶ Setup
-```
-
-**Opção B — Terminal CLI:**
-```bash
-./dod/tracker.sh
-```
-
-Ambos mostram resultado em tempo real:
-```
-#    IP              NOME        STATUS     DETALHES
-1    192.168.1.10    pc-lab-01   ✅ OK      exit 0
-2    192.168.1.11    pc-lab-02   ⏳ RUN     instalando docker...
-...
-```
-
-### 🔍 7. VERIFICAR TODAS
-
-```bash
-# Dashboard: clique em 🔍 Verificar
-# Ou terminal:
-./dod/tracker.sh --verify
-```
-
-### 🧹 8. LIMPAR TUDO (QUANDO TERMINAR)
-
-```bash
-# Dashboard: clique em 🗑️ Limpar
-# Ou terminal:
-./dod/tracker.sh --teardown
+# 4. Verificar
+sshpass -p '8u@3tArb!' ssh -o StrictHostKeyChecking=no root@<IP> \
+  'curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | bash -s -- --verify'
 ```
 
 ---
 
-## 🔐 CREDENCIAIS (TODAS IGUAIS)
+## 🚀 INSTALAR EM N MÁQUINAS (PARALELO)
 
-| Campo | Valor |
-|-------|-------|
-| Usuário SSH | `root` |
-| Senha SSH | `8u@3tArb!` |
-| Usuário criado | `devopsdays` |
-| Senha devopsdays | `cetensufrb` |
-
----
-
-## 🧠 REGRAS DE OURO PARA O ORQUESTRADOR
-
-1. **MACs primeiro** — se você tem os 19 MACs, o `discover.sh` acha os IPs sozinho
-2. **Sempre teste em 1 antes** — não queime 19 máquinas de uma vez
-3. **Não feche o terminal do dashboard** — senão perde o progresso
-4. **Senha SSH igual pra todas** — `8u@3tArb!`
-5. **Cada máquina leva ~3-5min** para instalar tudo
-6. **Roda em paralelo** — 19 máquinas levam ~10min no total
-7. **Se uma falhar** — o log aparece na tabela, debugue por SSH
-8. **Cache do raw.githubusercontent** — se der 404, espera 2 minutos e tenta de novo
+```bash
+# Loop paralelo via SSH
+for IP in $(cat <<<"10.17.15.142
+10.17.15.143"); do
+    (
+        echo "[$IP] Iniciando..."
+        sshpass -p '8u@3tArb!' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$IP \
+            'curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | bash' \
+            && echo "[$IP] ✅ OK" || echo "[$IP] ❌ ERRO"
+    ) &
+done
+wait
+```
 
 ---
 
-## 🆘 RESOLUÇÃO DE PROBLEMAS COMUNS
+## 🔍 VERIFICAR MÁQUINAS
 
-| Problema | Causa | Solução |
-|----------|-------|---------|
-| MAC não encontrado | Máquina desligada | Ligar e rodar `discover.sh` de novo |
-| `ssh: Connection refused` | SSH não instalado | `apt-get install openssh-server` na máquina |
-| `Permission denied` | Senha errada | Confirmar `8u@3tArb!` |
-| Dashboard não sobe | Python sem porta | `python3 -m http.server 8000` pra testar |
-| `arp-scan: not found` | Não instalado | `apt-get install arp-scan` (ou usa fallback) |
-| `hosts.txt` vazio | Nenhum MAC encontrado | Verificar `macs.txt` e rede |
-| Seu PC orquestrador precisa virar alvo também? | Rode o bootstrap local: `./dod/bootstrap.sh` |
-
----
-
-## 📦 RESUMO DOS SCRIPTS (O QUE CADA UM FAZ)
-
-| Script | Função |
-|--------|--------|
-| `bootstrap.sh` | Entrypoint via curl. Aceita `--verify` e `--teardown` |
-| `setup_dod.sh` | Instala nginx, docker, aws cli, clona repo, sobe stack |
-| `teardown_dod.sh` | Remove containers, nginx, docker, usuário |
-| `verify_dod.sh` | Verifica: usuário, docker, containers, localstack, aws, nginx |
-| `discover.sh` | Escaneia rede, casa MACs com IPs, gera hosts.txt |
-| `tracker.sh` | Dashboard via terminal com tabela ao vivo |
-| `dashboard.py` | Dashboard via navegador (localhost:8000) |
-| `deploy.sh` | Deploy SSH paralelo (alternativa avançada) |
+```bash
+# Check rápido — SSH root + systemctl/status
+for IP in $(cat <<<"10.17.15.142
+10.17.15.143"); do
+    sshpass -p '8u@3tArb!' ssh -o StrictHostKeyChecking=no root@$IP 'echo -n "$IP: "; systemctl is-active nginx docker; curl -s -o /dev/null -w "nginx=%{http_code} " http://localhost/; docker ps --format "{{.Names}}"' &
+done
+wait
+```
 
 ---
 
-## 🏁 CHECKLIST DO ORQUESTRADOR
+## 🧹 TEARDOWN (LIMPEZA)
 
-- [ ] `git clone` feito
-- [ ] `dod/macs.txt` preenchido com 19 MACs
-- [ ] `sudo ./dod/discover.sh` rodado
-- [ ] `dod/hosts.txt` gerado com IPs
-- [ ] Teste em 1 máquina passou
-- [ ] Dashboard rodando (`python3 dod/dashboard.py`)
-- [ ] ▶ Setup clicado / tracker disparado
-- [ ] 19/19 ✅ concluídos
-- [ ] 🔍 Verify rodou em todas
-- [ ] 🧹 Teardown (se necessário)
+```bash
+sshpass -p '8u@3tArb!' ssh -o StrictHostKeyChecking=no root@<IP> \
+  'curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | bash -s -- --teardown'
+```
 
 ---
 
-> **Missão do orquestrador:** Dois terminais abertos. Um com o dashboard (`:8000`), outro para debug. Monitorar a tabela até todos ficarem ✅ OK. Se algo falhar, SSH direto na máquina e resolve.
+## 📄 SCRIPTS DISPONÍVEIS
+
+| Script | O que faz |
+|---|---|
+| `setup_dod.sh` | Tudo: nginx (host), docker, localstack (container), aws cli (host), repo |
+| `verify_dod.sh` | Verifica: nginx, localstack, aws cli, repo |
+| `teardown_dod.sh` | Remove tudo |
+| `bootstrap.sh` | Entry point curl — chama setup/verify/teardown |
+| `discover.sh` | Escaneia rede, casa MAC→IP (lê macs.json ou macs.txt) |
+| `machines.md` | Log das máquinas configuradas |
+
+---
+
+## 📊 LOG DE MÁQUINAS
+
+Veja `dod/machines.md` — lista as 19 máquinas com IP, MAC, hostname e status.
+
+---
+
+## ⚡ REGRAS DE OURO
+
+1. **Sempre testar em 1 antes** — nunca批量 em 19 de uma vez
+2. **SSH root precisa de PermitRootLogin yes** — verificar na primeira máquina
+3. **curl sempre instalado primeiro** — se falhar, instalar na mão
+4. **LocalStack demora ~60s no primeiro start** — health check pode timeoutar (normal)
+5. **Se bootstrap falhar** — SSH manual + debug
+6. **Parallel jobs** — `&` + `wait` é suficiente pra 19 máquinas
+
+---
+
+## 🔧 DEBUG
+
+```bash
+# Ver logs LocalStack
+docker logs dod-localstack
+
+# Ver nginx
+systemctl status nginx
+tail -f /var/log/nginx/error.log
+
+# Ver AWS CLI
+su - devopsdays -c '~/.local/bin/aws --version'
+su - devopsdays -c 'AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 ~/.local/bin/aws --endpoint-url=http://localhost:4566 s3 ls'
+
+# Ver containers
+docker ps
+```
