@@ -1,0 +1,14 @@
+# Lista de MACs das máquinas alvo
+# Formato: MAC_ADDRESS  [NOME_OPCIONAL]
+#
+# Como conseguir o MAC:
+#   - No Windows: ipconfig /all | findstr "Físico"
+#   - No Linux:   ip link | grep -E "link/ether" | awk '{print $2}'
+#   - No BIOS:    geralmente na etiqueta ou no inventário
+#
+# Basta preencher abaixo. O script descobre o IP automaticamente.
+
+# Exemplo (substitua pelos seus):
+# aa:bb:cc:dd:ee:01  maquina-01
+# aa:bb:cc:dd:ee:02  maquina-02
+# aa:bb:cc:dd:ee:03  maquina-03

@@ -32,6 +32,7 @@ from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────────────────
 HOSTS_FILE = Path(__file__).parent / "hosts.txt"
+MACS_FILE = Path(__file__).parent / "macs.txt"
 RESULTS_DIR = Path("/tmp/dod-dashboard")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +49,30 @@ def load_hosts(hosts_path: Path) -> list[dict]:
     hosts = []
     if not hosts_path.exists():
         print(f"[dashboard] ✗ Arquivo não encontrado: {hosts_path}")
+    return hosts
+
+def load_macs(macs_path: Path) -> list[dict]:
+    """Carrega macs.txt — formato: MAC [NOME]"""
+    hosts = []
+    if not macs_path.exists():
         return hosts
+
+    with open(macs_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) >= 1:
+                mac = parts[0].lower().replace("-", ":")
+                hosts.append({
+                    "ip": "?",
+                    "nome": parts[1] if len(parts) > 1 else mac,
+                    "mac": mac,
+                    "hostname": "?",
+                    "mac_real": mac,
+                })
+    return hosts
 
     with open(hosts_path) as f:
         for line in f:
@@ -511,7 +535,7 @@ setInterval(refresh, 5000);
         elif self.path == "/api/hosts":
             self._json_response({"hosts": state.hosts})
         else:
-            self._html_response(b"<h1>404</h1><p>Rota nao encontrada</p>", 404)
+            self._html_response("<h1>404</h1><p>Rota nao encontrada</p>".encode(), 404)
 
 # ── Main ───────────────────────────────────────────────────────────────────
 def main():
@@ -523,10 +547,50 @@ def main():
     hosts_path = Path(args.hosts)
     hosts = load_hosts(hosts_path)
 
+    # Se não achou hosts.txt, tenta carregar MACs
     if not hosts:
-        print(f"[dashboard] ✗ Nenhum host carregado de {hosts_path}")
-        print(f"[dashboard]   Crie o arquivo com formato: IP [NOME] [MAC]")
-        sys.exit(1)
+        macs_path = MACS_FILE
+        hosts = load_macs(macs_path)
+        if hosts:
+            print(f"[dashboard] 📋 Carregados {len(hosts)} MACs de {macs_path}")
+            print("[dashboard] 🔍 Tentando descobrir IPs via escaneamento de rede...")
+            # tenta escanear a rede local
+            import re
+            try:
+                # arp-scan
+                iface = subprocess.run(
+                    ["ip", "route"], capture_output=True, text=True
+                ).stdout
+                iface = [l.split() for l in iface.split("\n") if "default" in l]
+                iface = iface[0][4] if iface else ""
+
+                if iface:
+                    result = subprocess.run(
+                        ["sudo", "arp-scan", "--localnet", "--interface", iface],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    for line in result.stdout.split("\n"):
+                        parts = line.strip().split()
+                        if len(parts) >= 2 and re.match(r"^\d+\.\d+\.\d+\.\d+$", parts[0]):
+                            ip, mac = parts[0], parts[1].lower()
+                            for h in hosts:
+                                if h["mac"] == mac or h["mac"].replace(":", "-") == mac:
+                                    h["ip"] = ip
+                                    break
+                    found = sum(1 for h in hosts if h["ip"] != "?")
+                    print(f"[dashboard] ✅ {found}/{len(hosts)} IPs descobertos via arp-scan")
+            except Exception:
+                print("[dashboard] ⚠ Escaneamento falhou. Use ./dod/discover.sh manualmente")
+
+            # verifica se descobriu todos
+            missing = [h for h in hosts if h["ip"] == "?"]
+            if missing:
+                print(f"[dashboard] ⚠ {len(missing)} máquinas sem IP. IPs precisam ser descobertos.")
+                print(f"[dashboard]   Execute: sudo ./dod/discover.sh")
+        else:
+            print(f"[dashboard] ✗ Nenhum host ou MAC encontrado.")
+            print(f"[dashboard]   Crie hosts.txt (IP [NOME]) ou macs.txt (MAC [NOME])")
+            sys.exit(1)
 
     print(f"[dashboard] 📋 Carregados {len(hosts)} hosts")
 
@@ -535,11 +599,15 @@ def main():
     state = State(hosts)
     for h in hosts:
         ip = h["ip"]
+        if ip == "?" or ip.startswith("#"):
+            print(f"  → {h['mac'] or h['nome']}... ⏸️  sem IP")
+            state.update(ip, {"hostname_real": "?", "mac_real": h.get("mac", "?")})
+            continue
         print(f"  → {ip}... ", end="", flush=True)
         hostname, mac = discover_host(ip)
         state.update(ip, {
             "hostname_real": hostname,
-            "mac_real": mac,
+            "mac_real": mac or h.get("mac", "?"),
         })
         print(f"{hostname} | {mac}")
 

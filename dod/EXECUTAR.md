@@ -16,7 +16,28 @@ pkg update && pkg install openssh sshpass python curl -y
 # já tem tudo se seguiu a stack do projeto
 ```
 
-### Arquivo hosts.txt (criar em dod/hosts.txt):
+### Arquivo de hosts — duas opções:
+
+**Opção A (recomendada) — Usar MACs (IPs descobertos automagicamente):**
+
+Crie `dod/macs.txt` com os MACs que você tem:
+```txt
+# MAC_ADDRESS        NOME_OPCIONAL
+aa:bb:cc:dd:ee:01   pc-lab-01
+aa:bb:cc:dd:ee:02   pc-lab-02
+aa:bb:cc:dd:ee:03   pc-lab-03
+...
+```
+
+Depois descubra os IPs automaticamente:
+```bash
+sudo ./dod/discover.sh
+```
+Isso escaneia a rede, casa cada MAC com seu IP atual, e gera `hosts.txt`.
+
+**Opção B — IPs fixos (se você já sabe os IPs):**
+
+Crie `dod/hosts.txt` diretamente:
 ```txt
 # IP_DAS_MAQUINAS
 192.168.1.10  pc-lab-01
