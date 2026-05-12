@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 DEVOPS_USER="devopsdays"
-REPO_DIR="/home/$DEVOPS_USER/dod-fsa"
+REPO_DIR="/home/devopsdays/dod-fsa"
 
 info()  { echo -e "${BLUE}[teardown]${NC} $*"; }
 ok()    { echo -e "${GREEN}✓${NC} $*"; }
@@ -31,9 +31,7 @@ header "Iniciando Limpeza"
 
 # ── 1. LocalStack (container) ────────────────────────────────────────────
 info "Parando LocalStack..."
-if [ -d "$REPO_DIR" ]; then
-    su - "$DEVOPS_USER" -c "cd /home/$DEVOPS_USER/dod-fsa 2>/dev/null && docker compose down" 2>/dev/null || true
-fi
+su - "$DEVOPS_USER" -c "cd /home/devopsdays/dod-fsa 2>/dev/null && docker compose down" 2>/dev/null || true
 docker stop dod-localstack 2>/dev/null || true
 docker rm dod-localstack 2>/dev/null || true
 ok "Container removido"

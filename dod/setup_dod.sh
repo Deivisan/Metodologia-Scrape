@@ -116,11 +116,11 @@ header "Subindo LocalStack (container)"
 
 su - "$DEVOPS_USER" -c '
     set -e
-    HOME_DIR="/home/'"$DEVOPS_USER"
-    if [ ! -d "'"$HOME_DIR/$REPO_DIR"'" ]; then
-        git clone -q "'"$REPO_URL"'" "'"$HOME_DIR/$REPO_DIR"'" 2>/dev/null
+    REPO_HOME="/home/devopsdays"
+    if [ ! -d "$REPO_HOME/dod-fsa" ]; then
+        git clone -q "https://github.com/Jonta-Sancar/dod-fsa.git" "$REPO_HOME/dod-fsa"
     fi
-    cd "'"$HOME_DIR/$REPO_DIR"'"
+    cd "$REPO_HOME/dod-fsa"
     sed -i "s|image: localstack/localstack$|image: localstack/localstack:3.5.0|" docker-compose.yml 2>/dev/null || true
     docker compose up -d localstack
 '

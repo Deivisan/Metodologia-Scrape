@@ -39,7 +39,7 @@ systemctl is-active --quiet docker && ok "Docker daemon ativo" || warn "Docker d
 
 # ── 3. LocalStack (container) ─────────────────────────────────────────────
 info "LocalStack (container)..."
-docker ps --format "{{.Names}}" 2>/dev/null | grep -q dod-localstack && ok "Container dod-localstack rodando" || warn "Container não encontrado"
+docker ps --format "{{.Names}}" 2>/dev/null | grep -q dod-fsa-localstack-1 && ok "Container dod-fsa-localstack-1 rodando" || warn "Container não encontrado"
 
 if curl -s --max-time 5 http://localhost:4566/_localstack/health 2>/dev/null | grep -q '"features"'; then
     ok "LocalStack respondendo"
@@ -66,7 +66,7 @@ fi
 
 # ── 6. Repositório (host) ─────────────────────────────────────────────────
 info "Repositório (host)..."
-REPO_DIR="/home/$DEVOPS_USER/dod-fsa"
+REPO_DIR="/home/devopsdays/dod-fsa"
 [ -d "$REPO_DIR" ] && ok "Repo existe em $REPO_DIR" || fail "Repo não encontrado"
 
 # ── Resumo ────────────────────────────────────────────────────────────────

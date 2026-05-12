@@ -1,7 +1,7 @@
 services:
   localstack:
     image: localstack/localstack:3.5.0
-    container_name: dod-localstack
+    container_name: dod-fsa-localstack-1
     environment:
       - DEFAULT_REGION=us-east-1
       - EDGE_PORT=4566
