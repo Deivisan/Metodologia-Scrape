@@ -6,7 +6,7 @@
 # Uso: sudo ./setup_dod.sh
 #      curl -fsSL https://raw.githubusercontent.com/Deivisan/Metodologia-Scrape/master/dod/bootstrap.sh | sudo bash
 #=============================================================================
-set -euo pipefail
+set -eo pipefail
 
 # ── Cores ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -59,19 +59,34 @@ fi
 
 # distro detection
 DISTRO=""
+DISTRO_FAMILY=""
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    DISTRO="$ID"
-    info "Distro detectada: $DISTRO $VERSION_ID"
-else
-    warn "Não foi possível detectar a distribuição"
+    DISTRO="${ID:-unknown}"
+    DISTRO_VERSION="${VERSION_ID:-?}"
+    # debian family?
+    case "$DISTRO" in
+        debian|ubuntu|linuxmint|pop|elementary|zorin) DISTRO_FAMILY="debian" ;;
+        rhel|centos|fedora|rocky|almalinux)           DISTRO_FAMILY="redhat" ;;
+        arch|manjaro|endeavouros|artix)               DISTRO_FAMILY="arch" ;;
+        suse|opensuse*)                                DISTRO_FAMILY="suse" ;;
+        *)                                             DISTRO_FAMILY="other" ;;
+    esac
+    info "Distro: $DISTRO $DISTRO_VERSION (família: $DISTRO_FAMILY)"
+fi
+
+# apt-get disponível? (Ubuntu/Debian esperado)
+if [ "$DISTRO_FAMILY" != "debian" ] && ! command -v apt-get &>/dev/null; then
+    fail "Este script foi feito para Ubuntu/Debian. Detectado: $DISTRO"
+    fail "Instale manualmente: nginx, docker, docker-compose, git, curl, unzip"
+    exit 1
 fi
 
 # ── 2. Update + Limpeza ───────────────────────────────────────────────────
 header "Atualizando Sistema e Limpando Cache"
 
 apt-get update -qq
-apt-get upgrade -y -qq
+apt-get upgrade -y -qq 2>/dev/null || true  # upgrade pode falhar em alguns casos
 apt-get autoremove -y -qq
 apt-get clean -qq
 apt-get autoclean -qq
@@ -108,17 +123,27 @@ fi
 # ── 5. Docker ─────────────────────────────────────────────────────────────
 header "Instalando Docker e Docker Compose"
 
-# Só adiciona repo se docker não estiver instalado
-if ! command -v docker &>/dev/null; then
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-    chmod a+r /etc/apt/keyrings/docker.asc
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-    apt-get update -qq
-    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null
-    ok "Docker instalado via repositório oficial"
-else
+if command -v docker &>/dev/null; then
     ok "Docker já instalado: $(docker --version 2>/dev/null || true)"
+else
+    # Tenta via apt oficial (Ubuntu/Debian)
+    if [ "$DISTRO_FAMILY" = "debian" ]; then
+        CODENAME="${VERSION_CODENAME:-$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")}"
+        [ -z "$CODENAME" ] && CODENAME="jammy"  # fallback seguro
+
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+        apt-get update -qq
+        apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null
+        ok "Docker instalado via repositório oficial"
+    else
+        # Fallback: script oficial get.docker.com (funciona em qualquer distro)
+        warn "Distro não-Debian detectada. Usando script oficial do Docker..."
+        curl -fsSL https://get.docker.com | sh
+        ok "Docker instalado via script oficial"
+    fi
 fi
 
 if ! systemctl is-active --quiet docker; then
