@@ -32,7 +32,7 @@ header "Iniciando Limpeza"
 # ── 1. LocalStack (container) ────────────────────────────────────────────
 info "Parando LocalStack..."
 if [ -d "$REPO_DIR" ]; then
-    su - "$DEVOPS_USER" -c "cd ~/$DEVOPS_USER/dod-fsa 2>/dev/null && docker compose down" 2>/dev/null || true
+    su - "$DEVOPS_USER" -c "cd /home/$DEVOPS_USER/dod-fsa 2>/dev/null && docker compose down" 2>/dev/null || true
 fi
 docker stop dod-localstack 2>/dev/null || true
 docker rm dod-localstack 2>/dev/null || true

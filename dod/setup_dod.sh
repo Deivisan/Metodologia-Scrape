@@ -116,12 +116,12 @@ header "Subindo LocalStack (container)"
 
 su - "$DEVOPS_USER" -c '
     set -e
-    if [ ! -d "'"$REPO_DIR"'" ]; then
-        git clone -q "'"$REPO_URL"'" "'"$REPO_DIR"'" 2>/dev/null
+    HOME_DIR="/home/'"$DEVOPS_USER"
+    if [ ! -d "'"$HOME_DIR/$REPO_DIR"'" ]; then
+        git clone -q "'"$REPO_URL"'" "'"$HOME_DIR/$REPO_DIR"'" 2>/dev/null
     fi
-    cd "'"$REPO_DIR"'"
+    cd "'"$HOME_DIR/$REPO_DIR"'"
     sed -i "s|image: localstack/localstack$|image: localstack/localstack:3.5.0|" docker-compose.yml 2>/dev/null || true
-    # sobe só localstack
     docker compose up -d localstack
 '
 ok "LocalStack container rodando"
@@ -173,7 +173,7 @@ echo ""
 echo -e "${GREEN}Serviços no HOST:${NC}"
 echo "  Nginx:        http://localhost:80"
 echo "  AWS CLI:      ~/.local/bin/aws"
-echo "  Repo:         ~/$REPO_DIR"
+echo "  Repo:         /home/$DEVOPS_USER/$REPO_DIR"
 echo ""
 echo -e "${GREEN}Serviços em CONTAINER:${NC}"
 echo "  LocalStack:   http://localhost:4566"

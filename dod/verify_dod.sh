@@ -66,7 +66,7 @@ fi
 
 # ── 6. Repositório (host) ─────────────────────────────────────────────────
 info "Repositório (host)..."
-REPO_DIR="/home/$DEVOPS_USER/$REPO_DIR"
+REPO_DIR="/home/$DEVOPS_USER/dod-fsa"
 [ -d "$REPO_DIR" ] && ok "Repo existe em $REPO_DIR" || fail "Repo não encontrado"
 
 # ── Resumo ────────────────────────────────────────────────────────────────
