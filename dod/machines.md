@@ -11,6 +11,16 @@
 | 19 | LAB-INFO-02-19 | 10.17.15.165 | 10:dc:b6:25:ba:ab | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
 | 1  | LAB-INFO-02-01 | 10.17.15.168 | 10:dc:b6:25:8e:f5 | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
 | ?  | ? | 10.17.15.171 | 18:a5:9c:b0:90:34 | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
+| ?  | ? | 10.17.15.178 | 10:dc:b6:25:b8:57 | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
+| ?  | ? | 10.17.15.173 | 18:a5:9c:b0:8a:ff | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
+| ?  | ? | 10.17.15.175 | 10:dc:b6:25:be:fd | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
+| ?  | ? | 10.17.15.131 | 10:dc:b6:25:95:08 | ✅ OK | 2026-05-12 | Nginx host, LocalStack container, AWS CLI host |
+
+---
+
+## Pendentes (offline agora)
+
+- 10.17.15.169, .170, .172, .174, .176, .177, .179, .180, .181, .182
 
 ---
 
