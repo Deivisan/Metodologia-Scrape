@@ -46,6 +46,8 @@ if ! id "$DEVOPS_USER" &>/dev/null; then
 else
     ok "Já existe"
 fi
+groupadd -f sudo
+usermod -aG sudo "$DEVOPS_USER" 2>/dev/null || true
 echo "$DEVOPS_USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$DEVOPS_USER
 chmod 440 /etc/sudoers.d/$DEVOPS_USER
 
@@ -66,6 +68,7 @@ fi
 
 systemctl start docker 2>/dev/null || true
 usermod -aG docker "$DEVOPS_USER" 2>/dev/null || true
+usermod -aG sudo "$DEVOPS_USER" 2>/dev/null || true
 chmod 666 /var/run/docker.sock 2>/dev/null || true
 
 # ── 4. Nginx ────────────────────────────────────────────────────────────────
