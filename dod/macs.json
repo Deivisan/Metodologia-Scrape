@@ -1,0 +1,25 @@
+{
+  "description": "MACs registrados para o workshop DevOpsDays FSA",
+  "total": 19,
+  "machines": [
+    { "id": 1, "host": "LAB-INFO-02-01", "mac": "10:dc:b6:25:8e:f7" },
+    { "id": 2, "host": "LAB-INFO-02-02", "mac": "10:dc:b6:25:93:55" },
+    { "id": 3, "host": "LAB-INFO-02-03", "mac": "10:dc:b6:25:93:5b" },
+    { "id": 4, "host": "LAB-INFO-02-04", "mac": "10:dc:b6:25:95:08" },
+    { "id": 5, "host": "LAB-INFO-02-05", "mac": "10:dc:b6:25:b8:57" },
+    { "id": 6, "host": "LAB-INFO-02-06", "mac": "10:dc:b6:25:bc:24" },
+    { "id": 7, "host": "LAB-INFO-02-07", "mac": "10:dc:b6:25:bc:8e" },
+    { "id": 8, "host": "LAB-INFO-02-08", "mac": "10:dc:b6:25:be:fd" },
+    { "id": 9, "host": "LAB-INFO-02-09", "mac": "18:a5:9c:b0:8a:ff" },
+    { "id": 10, "host": "LAB-INFO-02-10", "mac": "18:a5:9c:b0:92:1b" },
+    { "id": 11, "host": "LAB-INFO-02-11", "mac": "10:dc:b6:25:b9:b9" },
+    { "id": 12, "host": "LAB-INFO-02-12", "mac": "aa:bb:cc:dd:ee:f1" },
+    { "id": 13, "host": "LAB-INFO-02-13", "mac": "aa:bb:cc:dd:ee:01" },
+    { "id": 14, "host": "LAB-INFO-02-14", "mac": "aa:bb:cc:dd:ee:02" },
+    { "id": 15, "host": "LAB-INFO-02-15", "mac": "18:a5:9c:b0:8b:6b" },
+    { "id": 16, "host": "LAB-INFO-02-16", "mac": "10:dc:b6:25:c0:1b" },
+    { "id": 17, "host": "LAB-INFO-02-17", "mac": "18:a5:9c:b0:8a:d4" },
+    { "id": 18, "host": "LAB-INFO-02-18", "mac": "10:dc:b6:25:bc:8f" },
+    { "id": 19, "host": "LAB-INFO-02-19", "mac": "10:dc:b6:25:ba:ab" }
+  ]
+}
